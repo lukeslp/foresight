@@ -99,14 +99,14 @@ header[role="banner"] {
 }
 
 /* ===== STOCK GRID CONTAINER ===== */
-#stock-grid-container {
+#stock-grid {
   min-height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-#stock-grid-container svg {
+#stock-grid svg {
   width: 100%;
   height: auto;
 }
