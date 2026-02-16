@@ -191,7 +191,7 @@ class PredictionWorker:
                 # Record initial price
                 current_price = stock_info.get('current_price')
                 if current_price:
-                    db.record_price(
+                    db.add_price(
                         stock_id=stock_id,
                         cycle_id=cycle_id,
                         price=current_price

@@ -44,7 +44,7 @@ def test_database():
     print(f"✓ Added stock: {stock_id}")
 
     # Test price recording
-    db.record_price(stock_id=stock_id, cycle_id=cycle_id, price=175.50)
+    db.add_price(stock_id=stock_id, cycle_id=cycle_id, price=175.50)
     print(f"✓ Recorded price")
 
     # Test prediction
