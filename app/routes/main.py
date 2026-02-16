@@ -24,10 +24,15 @@ def health():
         # Try to get dashboard summary to verify DB is working
         db.get_dashboard_summary()
 
+        # Check worker status
+        worker = current_app.worker
+        worker_status = 'running' if worker.is_alive() else 'stopped'
+
         return {
             'status': 'healthy',
             'service': 'foresight',
-            'database': 'connected'
+            'database': 'connected',
+            'worker': worker_status
         }, 200
 
     except Exception as e:

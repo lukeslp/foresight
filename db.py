@@ -7,14 +7,20 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional, Any, Tuple
 from contextlib import contextmanager
-import settings
+
+# Try to import settings, but allow db_path to be passed explicitly
+try:
+    import settings
+    DEFAULT_DB_PATH = settings.DB_PATH
+except ImportError:
+    DEFAULT_DB_PATH = 'foresight.db'
 
 
 class ForesightDB:
     """SQLite database manager for stock predictions"""
 
     def __init__(self, db_path: str = None):
-        self.db_path = db_path or settings.DB_PATH
+        self.db_path = db_path or DEFAULT_DB_PATH
         self._init_db()
 
     @contextmanager

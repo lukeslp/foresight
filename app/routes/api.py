@@ -195,6 +195,21 @@ def stream():
     )
 
 
+@api_bp.route('/worker/status')
+def worker_status():
+    """Get background worker status"""
+    worker = current_app.worker
+
+    return jsonify({
+        'worker': worker.get_status(),
+        'config': {
+            'cycle_interval': current_app.config['CYCLE_INTERVAL'],
+            'max_stocks': current_app.config['MAX_STOCKS'],
+            'lookback_days': current_app.config['LOOKBACK_DAYS']
+        }
+    })
+
+
 @api_bp.route('/cycle/start', methods=['POST'])
 def start_cycle():
     """Manually trigger a new prediction cycle"""
@@ -209,17 +224,21 @@ def start_cycle():
             'cycle_id': current_cycle['id']
         }), 409
 
-    # Create new cycle
-    cycle_id = db.create_cycle()
+    # Check if worker is running
+    worker = current_app.worker
+    if not worker.is_alive():
+        return jsonify({
+            'error': 'Background worker is not running',
+            'message': 'Restart the application to start the worker'
+        }), 503
 
-    # TODO: Trigger background prediction worker
-    current_app.logger.info(f'Started prediction cycle {cycle_id}')
-
+    # The worker runs cycles automatically based on CYCLE_INTERVAL
+    # This endpoint just reports status
     return jsonify({
-        'status': 'started',
-        'cycle_id': cycle_id,
-        'message': 'Prediction cycle started'
-    }), 201
+        'status': 'worker_running',
+        'message': 'Background worker is running and will start cycles automatically',
+        'next_cycle_in': f'{current_app.config["CYCLE_INTERVAL"]} seconds'
+    }), 200
 
 
 @api_bp.route('/cycle/<int:cycle_id>/stop', methods=['POST'])
