@@ -390,6 +390,33 @@ curl http://localhost:5062/api/stats   # Should return provider stats
 
 **Why three LLM providers?** - Different models have different strengths (discovery, prediction, synthesis).
 
+## Reusable Code from dr.eamer.dev Ecosystem
+
+**Before implementing, check these locations for existing patterns**:
+
+**SSE Streaming** (CRITICAL - fixes `/api/stream` placeholder):
+- `/home/coolhand/SNIPPETS/streaming-patterns/sse_streaming_responses.py` - Complete SSE pattern with Flask/FastAPI examples, JavaScript client
+- Pattern: Generator yielding `data: {json}\n\n`, proper headers, error handling
+
+**Authentication** (for cycle control endpoints):
+- `/home/coolhand/servers/api-gateway/auth.py` - `@require_api_key` decorator
+- `/home/coolhand/servers/api-gateway/models/api_keys.py` - SQLite key management
+- `/home/coolhand/servers/api-gateway/manage.py` - CLI for key admin
+
+**LLM Integration** (already using):
+- `/home/coolhand/shared/llm_providers/` - ProviderFactory with 12 providers
+- `/home/coolhand/SNIPPETS/api-clients/multi_provider_abstraction.py` - Fallback chains
+
+**Background Workers**:
+- `/home/coolhand/SNIPPETS/async-patterns/` - Job queue patterns
+- `/home/coolhand/SNIPPETS/agent-orchestration/` - Multi-agent coordination
+
+**Health Checks**:
+- `/home/coolhand/shared/web/health.py` - Standardized health endpoint
+
+**Design**:
+- `/home/coolhand/shared/web/swiss-design.css` - Alternative to glassmorphic theme
+
 ## Key Files to Understand
 
 **Critical for fixing database issue**:
