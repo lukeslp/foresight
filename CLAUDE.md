@@ -25,13 +25,15 @@ Foresight is a stock prediction dashboard that uses multiple language models to 
 - SSE endpoint only emits heartbeat (no event queue)
 - Frontend is placeholder only ("In Development" status)
 
-## Commands
+## Quick Start
+
+**⚠️ WARNING**: Most API endpoints are currently broken due to database module mismatch. Fix database integration first (see "Database Integration Path" section).
 
 ```bash
 # Development
 source venv/bin/activate
 export PYTHONPATH=/home/coolhand/shared:$PYTHONPATH
-python run.py                    # Development server
+python run.py                    # Development server (only /health works)
 
 # Production
 ./start.sh                       # Gunicorn with 2 workers, 4 threads
@@ -298,16 +300,30 @@ API keys loaded from:
 4. Add tests
 5. Document in this file
 
-## TODO
+## Priority TODO
 
-- [ ] Background worker for continuous prediction cycles
-- [ ] Queue/channel system for SSE real-time updates
-- [ ] Result validation (check predictions against actual outcomes)
-- [ ] Provider performance comparison dashboard
+**P0 - Critical (Blocks everything)**:
+- [ ] Fix database integration (update `app/database.py` to use ForesightDB)
+- [ ] Test all API endpoints work after DB fix
+- [ ] Update deprecated `settings.py` imports in `db.py` to use `app.config`
+
+**P1 - Core Functionality**:
+- [ ] Create background worker for prediction cycles
+- [ ] Wire PredictionService into worker execution flow
+- [ ] Implement SSE event streaming (use events table from db.py)
+- [ ] Add cycle start/stop workflow (discovery → prediction → evaluation)
+
+**P2 - Frontend**:
+- [ ] Build D3.js stock grid visualization
+- [ ] Implement real-time SSE client connection
+- [ ] Create stock detail panels with prediction history
+- [ ] Add provider leaderboard charts
+
+**P3 - Polish**:
 - [ ] Export predictions to CSV/JSON
-- [ ] Historical accuracy charts
 - [ ] Rate limiting on API endpoints
-- [ ] Authentication for cycle start/stop endpoints
+- [ ] Authentication for cycle control endpoints
+- [ ] OpenAPI spec alignment (fix `/health` vs `/api/health` mismatch)
 
 ## Troubleshooting
 
