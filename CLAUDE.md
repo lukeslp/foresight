@@ -47,6 +47,47 @@ python -c "from app import create_app; app = create_app(); app.app_context().pus
 **Port**: 5062
 **URL**: https://dr.eamer.dev/foresight (when proxied via Caddy)
 
+## Database Integration Path
+
+**Current State**: Routes are broken due to database module mismatch.
+
+**Recommended Fix** (Option 1 - Update app/database.py):
+
+Replace `app/database.py` contents with the ForesightDB bridge:
+
+```python
+from pathlib import Path
+import sys
+root_dir = Path(__file__).parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.insert(0, str(root_dir))
+
+from db import ForesightDB
+from flask import g, current_app
+
+def get_db():
+    """Get ForesightDB instance from Flask g object"""
+    if 'foresight_db' not in g:
+        g.foresight_db = ForesightDB(current_app.config['DB_PATH'])
+    return g.foresight_db
+
+def close_db(e=None):
+    g.pop('foresight_db', None)
+```
+
+**Alternative** (Option 2 - Use db_bridge.py):
+- Import from `app.db_bridge` in routes instead
+- Register teardown handler in `app/__init__.py`
+
+**After Database Fix**:
+1. Test `/health` and `/api/current` endpoints
+2. Implement background worker for prediction cycles
+3. Wire PredictionService to worker
+4. Update SSE streaming to use events table
+5. Build frontend D3.js visualizations
+
+See `INTEGRATION_GUIDE.md` for complete migration steps.
+
 ## Architecture
 
 ### Application Factory Pattern
@@ -77,14 +118,24 @@ foresight/
 
 ### Database Schema
 
-SQLite with **WAL mode** enabled for concurrent reads:
+**⚠️ Two schemas exist - use db.py schema (recommended)**:
 
-- **cycles** - Prediction cycles (start_time, end_time, status)
-- **stocks** - Discovered stocks per cycle (symbol, name, price)
-- **predictions** - LLM predictions (provider, model, prediction, confidence, reasoning)
-- **results** - Actual outcomes (actual_outcome, price_change, was_correct)
+**Full Schema** (`db.py` - 850 lines, comprehensive):
+- **cycles** - Prediction cycles (status: active/completed/failed)
+- **stocks** - Global stock registry (deduplicated by ticker)
+- **prices** - Historical price tracking
+- **predictions** - LLM predictions with accuracy tracking
+- **accuracy_stats** - Pre-calculated provider performance
+- **events** - SSE event queue for real-time updates
+- 18 indexes, foreign key enforcement, event emission
 
-Indexes on cycle_id, stock_id, prediction_id for efficient queries.
+**Minimal Schema** (`app/database.py` - deprecated):
+- Basic cycles/stocks/predictions/results tables
+- No price history, no events table
+- 4 indexes only
+- **Do not use** - routes expect full schema methods
+
+SQLite configured with **WAL mode** for concurrent reads.
 
 ### Blueprint Structure
 
