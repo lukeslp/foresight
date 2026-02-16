@@ -328,20 +328,29 @@ API keys loaded from:
 ## Troubleshooting
 
 ```bash
+# AttributeError: 'sqlite3.Connection' object has no attribute 'get_current_cycle'
+# This is THE critical issue - routes use wrong database interface
+# FIX: Update app/database.py per "Database Integration Path" section
+
 # Database locked
-# Ensure WAL mode is enabled (it's automatic in init_db)
 sqlite3 foresight.db "PRAGMA journal_mode;"  # Should return "wal"
 
 # Import errors from shared library
 export PYTHONPATH=/home/coolhand/shared:$PYTHONPATH
+
+# Test database module directly
+python test_db.py  # Should show "✅ All database tests passed!"
 
 # Port already in use
 lsof -i :5062
 sm stop foresight
 
 # Provider initialization fails
-# Check API keys in /home/coolhand/.env
 grep "XAI_API_KEY\|ANTHROPIC_API_KEY\|GEMINI_API_KEY" /home/coolhand/.env
+
+# Schema mismatch (after fixing database integration)
+rm foresight.db foresight.db-shm foresight.db-wal
+python run.py  # Recreates with db.py schema
 ```
 
 ## Design Decisions
