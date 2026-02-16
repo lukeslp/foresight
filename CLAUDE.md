@@ -353,6 +353,29 @@ rm foresight.db foresight.db-shm foresight.db-wal
 python run.py  # Recreates with db.py schema
 ```
 
+## Testing
+
+```bash
+# Database module tests (these work)
+source venv/bin/activate
+python test_db.py
+# Expected: ✅ All database tests passed!
+
+# API endpoint tests (these will fail until database is fixed)
+curl http://localhost:5062/health      # ✅ Should work
+curl http://localhost:5062/api/current # ❌ Will crash with AttributeError
+
+# After fixing database integration:
+curl http://localhost:5062/api/current # Should return {"cycle": null, ...}
+curl http://localhost:5062/api/stats   # Should return provider stats
+```
+
+**Test Coverage**:
+- ✅ Database module: Comprehensive (`test_db.py`)
+- ❌ API endpoints: None (TODO after DB fix)
+- ❌ LLM services: None
+- ❌ Frontend: None
+
 ## Design Decisions
 
 **Why WAL mode?** - Allows concurrent reads during prediction cycles without blocking the web UI.
@@ -366,3 +389,29 @@ python run.py  # Recreates with db.py schema
 **Why SSE instead of WebSocket?** - One-way streaming is sufficient, SSE is simpler and works through proxies better.
 
 **Why three LLM providers?** - Different models have different strengths (discovery, prediction, synthesis).
+
+## Key Files to Understand
+
+**Critical for fixing database issue**:
+- `db.py` (850 lines) - Full database implementation, USE THIS
+- `app/database.py` (140 lines) - BROKEN, returns raw SQLite connections
+- `app/db_bridge.py` (27 lines) - Flask integration bridge for db.py
+- `INTEGRATION_GUIDE.md` - Complete migration instructions
+
+**Backend architecture**:
+- `app/__init__.py` - Application factory
+- `app/config.py` - Environment configuration
+- `app/routes/api.py` - API endpoints (currently broken)
+- `app/services/prediction_service.py` - LLM wrappers (not wired yet)
+- `app/services/stock_service.py` - yfinance integration
+
+**Documentation**:
+- `DATABASE.md` - Complete schema and API reference
+- `CLAUDE.md` - This file
+- `openapi.yaml` - API specification (not aligned with implementation)
+
+**Frontend (placeholder)**:
+- `static/index.html` - Basic structure
+- `static/css/style.css` - Glassmorphic design system
+- `static/js/app.js` - Minimal client (8 lines)
+- `static/js/grid.js` - D3.js stub (not implemented)
