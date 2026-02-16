@@ -85,9 +85,18 @@ def test_worker_initialization():
     from app.worker import PredictionWorker
     from app.config import DevelopmentConfig
 
-    config = DevelopmentConfig()
-    config.DB_PATH = str(root_dir / 'test_worker.db')
-    config.CYCLE_INTERVAL = 30  # Short interval for testing
+    # Create a dict from config class attributes
+    config = {
+        'DB_PATH': str(root_dir / 'test_worker.db'),
+        'CYCLE_INTERVAL': 30,
+        'PROVIDERS': {
+            'discovery': 'xai',
+            'prediction': 'anthropic',
+            'synthesis': 'gemini'
+        },
+        'MAX_STOCKS': 10,
+        'LOOKBACK_DAYS': 30
+    }
 
     worker = PredictionWorker(config)
     print(f"✓ Worker initialized")
