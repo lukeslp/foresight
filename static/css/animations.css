@@ -20,11 +20,12 @@
 }
 
 /* ─── Tile: new prediction flash ──────────── */
-/* Amber glow pulse on the tile border when new prediction arrives */
+/* GPU-composited opacity pulse (avoids main-thread filter rasterization) */
 @keyframes tile-oracle-flash {
-  0%   { filter: brightness(1) drop-shadow(0 0 0px var(--accent-primary)); }
-  30%  { filter: brightness(1.15) drop-shadow(0 0 6px var(--accent-primary)); }
-  100% { filter: brightness(1) drop-shadow(0 0 0px var(--accent-primary)); }
+  0%   { opacity: 1; }
+  30%  { opacity: 0.72; }
+  60%  { opacity: 0.95; }
+  100% { opacity: 1; }
 }
 
 .tile-new-prediction {
@@ -33,15 +34,15 @@
 
 /* ─── Tile: price direction flash ────────── */
 @keyframes price-flash-up {
-  0%   { filter: brightness(1); }
-  40%  { filter: brightness(1.2) drop-shadow(0 0 4px var(--stock-up)); }
-  100% { filter: brightness(1); }
+  0%   { opacity: 1; }
+  40%  { opacity: 0.7; }
+  100% { opacity: 1; }
 }
 
 @keyframes price-flash-down {
-  0%   { filter: brightness(1); }
-  40%  { filter: brightness(1.15) drop-shadow(0 0 4px var(--stock-down)); }
-  100% { filter: brightness(1); }
+  0%   { opacity: 1; }
+  40%  { opacity: 0.75; }
+  100% { opacity: 1; }
 }
 
 .tile-price-up   { animation: price-flash-up   0.7s ease-out; }

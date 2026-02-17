@@ -281,7 +281,7 @@ class StockGrid {
           .select('.tile-bg')
           .transition()
           .duration(200)
-          .attr('stroke', '#60a5fa')
+          .attr('stroke', this.colors.accent)
           .attr('stroke-width', 2);
       })
       .on('mouseleave', function() {
@@ -289,7 +289,7 @@ class StockGrid {
           .select('.tile-bg')
           .transition()
           .duration(200)
-          .attr('stroke', '#334155')
+          .attr('stroke', this.colors.border)
           .attr('stroke-width', 1);
       })
       .on('click', (event, d) => {
@@ -310,13 +310,13 @@ class StockGrid {
       .on('focus', function() {
         d3.select(this)
           .select('.tile-bg')
-          .attr('stroke', '#60a5fa')
+          .attr('stroke', this.colors.accent)
           .attr('stroke-width', 3);
       })
       .on('blur', function() {
         d3.select(this)
           .select('.tile-bg')
-          .attr('stroke', '#334155')
+          .attr('stroke', this.colors.border)
           .attr('stroke-width', 1);
       })
       .style('cursor', 'pointer')
@@ -339,8 +339,56 @@ class StockGrid {
       .select('.tile-bg')
       .transition()
       .duration(200)
-      .attr('stroke', d => d.symbol === symbol ? '#60a5fa' : '#334155')
+      .attr('stroke', d => d.symbol === symbol ? this.colors.accent : this.colors.border)
       .attr('stroke-width', d => d.symbol === symbol ? 2 : 1);
+  }
+
+  /**
+   * Patch a single tile's data and re-render only its changed elements.
+   * Called from SSE prediction/price_update events to avoid full grid re-renders.
+   */
+  patchTile(symbol, patch) {
+    if (!this.tiles || !symbol) return;
+
+    const tile = this.tiles.filter(d => d.symbol === symbol);
+    if (tile.empty()) return;
+
+    // Merge patch into the existing datum
+    tile.each(function(d) { Object.assign(d, patch); });
+
+    // Re-render only the affected elements
+    if (patch.prediction !== undefined) {
+      tile.select('.prediction-badge')
+        .transition().duration(400)
+        .text(d => d.prediction === 'up' ? 'UP' : d.prediction === 'down' ? 'DN' : '—')
+        .attr('fill', d => d.prediction === 'up' ? this.colors.up :
+                           d.prediction === 'down' ? this.colors.down : this.colors.flat);
+
+      tile.select('.prediction-arrow')
+        .transition().duration(400)
+        .attr('d', d => {
+          if (d.prediction === 'up') return 'M 0,-4 L -3,1 L 3,1 Z';
+          if (d.prediction === 'down') return 'M 0,4 L -3,-1 L 3,-1 Z';
+          return 'M -3,0 A 3,3 0 1,0 3,0 A 3,3 0 1,0 -3,0';
+        });
+
+      const stripeColor = patch.prediction === 'up' ? this.colors.up :
+                          patch.prediction === 'down' ? this.colors.down : this.colors.flat;
+      tile.select('.confidence-stripe')
+        .transition().duration(400)
+        .attr('fill', stripeColor)
+        .attr('width', patch.confidence ? 5 * patch.confidence : 2);
+
+      // Flash animation
+      tile.classed('tile-new-prediction', true);
+      setTimeout(() => tile.classed('tile-new-prediction', false), 900);
+    }
+
+    if (patch.price !== undefined) {
+      tile.select('.price')
+        .transition().duration(400)
+        .text(d => d.price ? `$${(+d.price).toFixed(2)}` : '—');
+    }
   }
 
   destroy() {
