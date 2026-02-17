@@ -204,22 +204,31 @@
 
       function setPhase(phase) {
         if (phaseEl) phaseEl.textContent = phase.toUpperCase();
-        steps.forEach(s => {
-          s.classList.toggle('active', s.dataset.phase === phase);
-          s.classList.remove('done');
-        });
-        // Mark previous phases as done
         const order = ['discovery', 'analysis', 'debate', 'consensus'];
         const idx = order.indexOf(phase);
         steps.forEach(s => {
+          const isActive = s.dataset.phase === phase;
           const sIdx = order.indexOf(s.dataset.phase);
-          if (sIdx < idx) s.classList.add('done');
+          s.classList.toggle('active', isActive);
+          s.classList.toggle('done', sIdx < idx);
+          // aria-current="step" marks the active phase for screen readers
+          if (isActive) {
+            s.setAttribute('aria-current', 'step');
+            s.setAttribute('aria-label', `${s.dataset.phase}: active`);
+          } else {
+            s.removeAttribute('aria-current');
+            s.removeAttribute('aria-label');
+          }
         });
       }
 
       function resetPhases() {
         if (phaseEl) phaseEl.textContent = 'IDLE';
-        steps.forEach(s => { s.classList.remove('active', 'done'); });
+        steps.forEach(s => {
+          s.classList.remove('active', 'done');
+          s.removeAttribute('aria-current');
+          s.removeAttribute('aria-label');
+        });
       }
 
       // Expose for app.js to call
