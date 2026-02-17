@@ -4,114 +4,121 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foresight is a stock prediction dashboard that uses multiple language models to discover stocks, generate predictions, and track accuracy over time. It operates in continuous prediction cycles, evaluating model performance against actual market outcomes.
+Foresight is a stock prediction dashboard. A background worker runs continuous prediction cycles: Grok discovers interesting stocks, Claude performs technical analysis, a second xAI instance provides contrarian analysis, and Gemini moderates a debate to produce a consensus prediction. Accuracy is tracked over time.
 
-## Current Status
-
-- ✅ **Database Integrated**: `ForesightDB` from `db.py` is fully integrated into the Flask app.
-- ✅ **Background Worker**: `PredictionWorker` in `app/worker.py` is operational and handles automated cycles.
-- ✅ **Services Operational**: `StockService` and `PredictionService` are wired into the worker.
-- ✅ **Frontend Functional**: D3.js visualizations (`grid.js`, `detail.js`, `sidebar.js`) are fully implemented and connected to real-time data.
-- ✅ **Tests Passing**: Complete test suite (62 tests) is passing.
+**Port**: 5062 | **URL**: https://dr.eamer.dev/foresight
 
 ## Quick Start
 
 ```bash
-# Development
 source venv/bin/activate
 export PYTHONPATH=/home/coolhand/shared:$PYTHONPATH
 python run.py
-
-# Production (Managed by Service Manager)
-sm start foresight-api
-sm status
-sm logs foresight-api
-
-# Manual Database Initialization
-python -c "from app import create_app; app = create_app(); app.app_context().push(); from app.database import init_db; init_db(app)"
 ```
 
-**Port**: 5062
-**URL**: https://dr.eamer.dev/foresight (when proxied via Caddy)
+**Production** (service manager):
+```bash
+sm start foresight-api
+sm logs foresight-api
+```
 
 ## Architecture
 
-### Application Factory Pattern
+### Prediction Cycle Flow
 
-Foresight follows Flask best practices with an application factory:
+The `PredictionWorker` (`app/worker.py`) runs in a background daemon thread:
 
+1. **Phase 1 — Discovery**: `PredictionService.discover_stocks()` calls xAI/Grok, returns a JSON array of ticker symbols
+2. **Phase 2 — Validation**: Each symbol is validated via yfinance; invalid or unfetchable symbols are dropped
+3. **Phase 3 — Multi-Agent Debate**: For each stock:
+   - **Primary analyst** (Anthropic/Claude): technical analysis via `generate_prediction()`
+   - **Secondary analyst** (xAI/Grok): contrarian view via direct `ProviderFactory` call
+   - **Head of Research** (Gemini): moderates via `debate_and_vote()`, returns consensus JSON
+4. **Phase 4 — Storage**: Individual analyst reports + consensus stored in `predictions` table
+
+### LLM Provider Roles
+
+Configured via environment or `app/config.py`:
+
+| Role | Default Provider | Model | Purpose |
+|------|-----------------|-------|---------|
+| `discovery` | `xai` | `grok-2-1212` | Stock discovery |
+| `prediction` | `anthropic` | `claude-3-5-sonnet-20241022` | Technical analysis |
+| `synthesis` | `gemini` | `gemini-2.0-flash-exp` | Debate moderator / confidence synthesis |
+
+Override via env vars: `DISCOVERY_PROVIDER`, `PREDICTION_PROVIDER`, `SYNTHESIS_PROVIDER`.
+
+**Critical**: All providers use `provider.complete(messages=[Message(...)])` from `~/shared/llm_providers/`. Never call `provider.generate()` — it does not exist.
+
+### Key Configuration
+
+```python
+CYCLE_INTERVAL = 30   # seconds — set to 600 for production
+MAX_STOCKS = 10       # stocks discovered per cycle
+LOOKBACK_DAYS = 30    # yfinance history window
 ```
-foresight/
-├── app/
-│   ├── __init__.py          # Application factory & worker startup
-│   ├── config.py            # Environment-based configuration
-│   ├── database.py          # Flask integration for ForesightDB
-│   ├── errors.py            # Error handlers
-│   ├── worker.py            # Background prediction cycle worker
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   ├── main.py          # Dashboard UI routes
-│   │   └── api.py           # REST + SSE endpoints
-│   └── services/
-│       ├── __init__.py
-│       ├── stock_service.py     # Stock data fetching (yfinance)
-│       └── prediction_service.py # LLM predictions (llm_providers)
-├── static/                  # Frontend assets (HTML, CSS, D3.js)
-├── db.py                    # Core database implementation (ForesightDB)
-├── run.py                   # Entry point
-└── start.sh                 # Production startup script
-```
 
-### Database Schema
+Required env vars: `XAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`.
 
-Uses the comprehensive schema in `db.py`:
-- **cycles**: Active/completed prediction cycles.
-- **stocks**: Global stock registry deduplicated by ticker.
-- **prices**: Historical price tracking for accuracy evaluation.
-- **predictions**: LLM predictions with confidence and reasoning.
-- **accuracy_stats**: Provider performance metrics.
-- **events**: SSE event queue for real-time dashboard updates.
+### Database Schema (`db.py`)
 
-SQLite configured with **WAL mode** for concurrent reads during background writes.
+`ForesightDB` manages SQLite with WAL mode. Key tables:
+- `cycles` — status: `active` | `completed` | `failed`
+- `stocks` — deduplicated by `ticker` (UNIQUE COLLATE NOCASE)
+- `prices` — snapshots per stock per cycle
+- `predictions` — per-provider predictions; consensus stored as `{provider}-consensus`
+- `events` — SSE event queue (auto-populated by `db.create_cycle()`, `db.complete_cycle()`, etc.)
+- `accuracy_stats` — provider accuracy aggregates
 
-### Services Layer
-
-- **StockService**: Fetches current prices and history via `yfinance`.
-- **PredictionService**: Discovers stocks (Grok), generates predictions (Claude), and synthesizes confidence (Gemini).
-
-## API Endpoints
-
-### REST Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check with database and worker status |
-| `/api/current` | GET | Current prediction cycle and its predictions |
-| `/api/stats` | GET | Accuracy statistics by provider |
-| `/api/history` | GET | Historical cycles (paginated) |
-| `/api/stock/<symbol>` | GET | Detailed stock history and predictions |
-| `/api/cycle/start` | POST | Manually trigger a new cycle |
-| `/api/cycle/<id>/stop` | POST | Stop a running cycle |
+Events are emitted automatically by DB methods — do not duplicate by calling them from the worker.
 
 ### SSE Streaming
 
-`GET /api/stream` - Server-Sent Events for real-time updates.
-- Events: `connected`, `heartbeat`, `cycle_start`, `prediction`, `price_update`, `cycle_complete`.
+`GET /api/stream` — the generator must run inside `with app.app_context():`. Omitting this causes `RuntimeError: Working outside of application context`. See `app/routes/api.py` for the implementation pattern.
 
 ## Testing
 
 ```bash
-# Run all tests
-./run_tests.sh all
+./run_tests.sh all                    # All tests
+./run_tests.sh unit                   # Unit tests only
+./run_tests.sh integration            # Integration tests only
+./run_tests.sh api                    # API endpoint tests
+./run_tests.sh db                     # DB tests (also runs test_db.py)
+./run_tests.sh coverage               # HTML coverage report → htmlcov/
+./run_tests.sh file tests/test_foo.py # Single file
 
-# Individual categories
-./run_tests.sh unit
-./run_tests.sh integration
-./run_tests.sh api
+# Direct pytest (same venv + PYTHONPATH required)
+pytest tests/test_services.py::TestPredictionService::test_discover_stocks -v
+pytest -m "not slow" -v
 ```
 
-## Reusable Code & Patterns
+Test fixtures (in `tests/conftest.py`):
+- `db` — fresh `ForesightDB` with temp file, tables cleared before/after each test
+- `mock_provider` — Mock with `.complete()` returning UP/0.75 JSON
+- `mock_provider_factory` — monkeypatches `ProviderFactory.get_provider`
+- `mock_yfinance` — monkeypatches `app.services.stock_service.yf`
+- `sample_cycle`, `sample_stock`, `sample_prediction` — pre-populated DB records
 
-- **SSE Pattern**: Uses `/home/coolhand/SNIPPETS/streaming-patterns/sse_streaming_responses.py`.
-- **LLM Integration**: Uses `/home/coolhand/shared/llm_providers/`.
-- **Concurrency**: WAL mode and `busy_timeout` for multi-threaded SQLite access.
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Worker + database status |
+| `/api/current` | GET | Current cycle + predictions |
+| `/api/stats` | GET | Provider leaderboard + accuracy |
+| `/api/history` | GET | Historical cycles (paginated) |
+| `/api/stock/<symbol>` | GET | Stock detail + prediction history |
+| `/api/cycle/start` | POST | Manually trigger a new cycle |
+| `/api/cycle/<id>/stop` | POST | Stop a running cycle |
+| `/api/stream` | GET | SSE event stream |
+
+## Known Issues
+
+- **Duplicate `except` block** in `worker.py:_process_stock()` — lines 325–328 shadow 309–311 with an identical handler; dead code.
+- The worker thread is disabled in `TESTING` mode — do not rely on it in integration tests; trigger cycles manually if needed.
+
+## Reusable Patterns
+
+- **LLM calls**: `provider.complete(messages=[Message(role='user', content=prompt)])` — response is a `CompletionResponse` with `.content` str
+- **JSON from LLM**: strip markdown code fences before `json.loads()` (see `generate_prediction()` regex pattern)
+- **SSE**: `~/home/coolhand/SNIPPETS/streaming-patterns/sse_streaming_responses.py`
