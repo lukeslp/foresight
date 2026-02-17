@@ -6,6 +6,7 @@
   <title>Foresight — Stock Prediction Terminal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://d3js.org">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/foresight/static/css/style.css">
   <link rel="stylesheet" href="/foresight/static/css/layout.css">
@@ -185,13 +186,13 @@
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="/foresight/static/js/api.js"></script>
-  <script src="/foresight/static/js/grid.js"></script>
-  <script src="/foresight/static/js/detail.js"></script>
-  <script src="/foresight/static/js/sidebar.js"></script>
-  <script src="/foresight/static/js/app.js"></script>
+  <!-- Scripts — all deferred; execution order preserved by HTML order -->
+  <script src="https://d3js.org/d3.v7.min.js" defer></script>
+  <script src="/foresight/static/js/api.js" defer></script>
+  <script src="/foresight/static/js/grid.js" defer></script>
+  <script src="/foresight/static/js/detail.js" defer></script>
+  <script src="/foresight/static/js/sidebar.js" defer></script>
+  <script src="/foresight/static/js/app.js" defer></script>
 
   <script>
     // Cycle phase indicator — driven by SSE events, hooked into global dashboard
