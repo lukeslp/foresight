@@ -194,6 +194,9 @@ class ForesightDashboard {
   async selectStock(symbol) {
     this.selectedStock = symbol;
 
+    // Store the tile that triggered the open so we can return focus on close
+    this._lastFocusedTile = document.activeElement;
+
     // Open panel immediately — don't wait for fetch
     const panel = document.getElementById('stock-detail');
     const backdrop = document.getElementById('detail-backdrop');
@@ -201,7 +204,12 @@ class ForesightDashboard {
       // Show empty/cleared state while loading (don't destroy the D3 SVG via innerHTML)
       if (this.detail) this.detail.showEmpty();
       panel.setAttribute('aria-hidden', 'false');
-      panel.focus();
+      panel.setAttribute('aria-modal', 'true');
+      // Focus the close button after the slide-in transition completes
+      setTimeout(() => {
+        const closeBtn = document.getElementById('close-detail');
+        if (closeBtn) closeBtn.focus();
+      }, 360);
     }
     if (backdrop) {
       backdrop.style.display = 'block';

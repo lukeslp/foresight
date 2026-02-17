@@ -16,8 +16,8 @@ class StockGrid {
     // Read from CSS variables to match the active design system
     const cs = getComputedStyle(document.documentElement);
     this.colors = {
-      up:        cs.getPropertyValue('--stock-up').trim()        || '#1aad6a',
-      down:      cs.getPropertyValue('--stock-down').trim()      || '#c93636',
+      up:        cs.getPropertyValue('--stock-up').trim()        || '#22c55e',
+      down:      cs.getPropertyValue('--stock-down').trim()      || '#ef4444',
       flat:      cs.getPropertyValue('--stock-flat').trim()      || '#5a5662',
       background:cs.getPropertyValue('--bg-secondary').trim()    || '#111111',
       border:    cs.getPropertyValue('--glass-border').trim()    || 'rgba(255,255,255,0.07)',

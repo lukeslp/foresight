@@ -46,7 +46,7 @@
   /* Typography */
   --text-primary:   #e6dcc8;  /* warm cream */
   --text-secondary: #a09585;  /* aged parchment */
-  --text-muted:     #5a5458;  /* faded ink */
+  --text-muted:     #6b6570;  /* faded ink — 3.1:1 passes AA UI/large text */
   --text-disabled:  #383338;
 
   /* Brand & accent */
