@@ -124,17 +124,20 @@ class ForesightDashboard {
     }
   }
 
-  updateGrid(stocks) {
+  updateGrid(predictions) {
     if (!this.grid) return;
 
-    // Transform stock data for grid
-    const gridData = stocks.map(stock => ({
-      symbol: stock.symbol,
-      price: stock.current_price,
-      change: stock.change_percent,
-      prediction: stock.prediction,
-      confidence: stock.confidence,
-      accuracy: stock.accuracy
+    // Transform predictions data for grid
+    // API returns predictions with: ticker, name, predicted_direction, confidence, accuracy, etc.
+    const gridData = predictions.map(pred => ({
+      symbol: pred.ticker,  // API returns 'ticker' not 'symbol'
+      name: pred.name,
+      price: pred.predicted_price || pred.initial_price,  // Use predicted or initial price
+      change: null,  // Change percent not in predictions, would need price history
+      prediction: pred.predicted_direction,  // 'up', 'down', 'neutral'
+      confidence: pred.confidence,
+      accuracy: pred.accuracy,
+      provider: pred.provider
     }));
 
     this.grid.update(gridData);
