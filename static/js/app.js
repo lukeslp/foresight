@@ -348,13 +348,6 @@ class ForesightDashboard {
     span.className = 'ticker-item';
     span.textContent = `${text}   `;
     ticker.appendChild(span);
-
-    // Mirror for seamless scroll loop — keep twin in sync
-    const twin = document.getElementById('ticker-twin');
-    if (twin) {
-      const clone = span.cloneNode(true);
-      twin.appendChild(clone);
-    }
   }
 
   handleCycleStart(data) {
