@@ -25,7 +25,7 @@ class Config:
 
     # LLM Providers
     PROVIDERS = {
-        'discovery': os.environ.get('DISCOVERY_PROVIDER', 'xai'),      # Grok for stock discovery
+        'discovery': os.environ.get('DISCOVERY_PROVIDER', 'mistral'),      # Mistral for stock discovery
         'prediction': os.environ.get('PREDICTION_PROVIDER', 'anthropic'), # Claude for technical analysis
         'synthesis': os.environ.get('SYNTHESIS_PROVIDER', 'gemini')    # Gemini for debate/consensus
     }
