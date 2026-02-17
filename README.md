@@ -140,14 +140,11 @@ foresight/
 │   ├── index.html               # Dashboard shell
 │   ├── css/                     # Terminal aesthetic styles
 │   └── js/
-│       ├── app.js               # Entry point
-│       ├── grid.js              # Stock grid D3 visualization
-│       ├── detail.js            # Stock detail chart
-│       ├── sidebar.js           # Cycle activity sidebar
-│       ├── leaderboard.js       # Provider accuracy leaderboard
-│       ├── timeline.js          # Cycle history timeline
-│       ├── sse-client.js        # SSE connection and event dispatch
-│       └── api.js               # REST client
+│       ├── app.js               # Entry point — SSE, routing, button wiring
+│       ├── grid.js              # 50-tile stock grid (D3 enter/update/exit)
+│       ├── detail.js            # Stock detail price chart
+│       ├── sidebar.js           # Provider accuracy leaderboard (D3 SVG)
+│       └── api.js               # REST client (loaded, available for extension)
 ├── db.py                        # ForesightDB — SQLite with WAL mode
 ├── run.py                       # Entry point
 └── start.sh                     # Production startup script
