@@ -50,11 +50,12 @@ class PredictionService:
             List of stock symbols
         """
         if 'discovery' not in self.providers:
-            logger.error('Discovery provider not configured')
+            logger.error('Discovery provider not configured. Available providers: %s', list(self.providers.keys()))
             return []
 
         try:
             provider = self.providers['discovery']
+            logger.debug(f'Using {provider.__class__.__name__} for stock discovery')
 
             prompt = f"""You are a stock market analyst. Identify {count} publicly traded stocks
 that are currently interesting for short-term trading (next 1-7 days).
@@ -68,15 +69,21 @@ Focus on stocks with:
 Return ONLY a JSON array of ticker symbols, nothing else.
 Example: ["AAPL", "MSFT", "TSLA"]"""
 
+            logger.debug(f'Calling provider.generate() for stock discovery')
             response = provider.generate(prompt)
+            logger.debug(f'Provider returned: {response[:200]}...')
 
             # Parse JSON response
             import json
             symbols = json.loads(response)
+            logger.debug(f'Parsed symbols: {symbols}')
 
             if isinstance(symbols, list):
-                return [s.upper() for s in symbols[:count]]
+                result = [s.upper() for s in symbols[:count]]
+                logger.debug(f'Discovery returning: {result}')
+                return result
 
+            logger.warning(f'Response was not a list: {type(symbols)}')
             return []
 
         except Exception as e:

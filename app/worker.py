@@ -67,15 +67,22 @@ class PredictionWorker:
     def _run_worker(self):
         """Main worker loop"""
         cycle_interval = self.config['CYCLE_INTERVAL']
+        first_cycle = True
 
         while self.running:
             try:
                 # Run a prediction cycle
                 self._run_prediction_cycle()
 
-                # Wait for next cycle
-                logger.info(f'Waiting {cycle_interval}s until next cycle')
-                time.sleep(cycle_interval)
+                # For first cycle, short wait; then use normal interval
+                if first_cycle:
+                    logger.info('First cycle complete, entering normal schedule')
+                    first_cycle = False
+                    # Brief wait before next cycle
+                    time.sleep(5)
+                else:
+                    logger.info(f'Waiting {cycle_interval}s until next cycle')
+                    time.sleep(cycle_interval)
 
             except Exception as e:
                 logger.error(f'Worker error: {e}', exc_info=True)
@@ -134,7 +141,9 @@ class PredictionWorker:
         """
         try:
             max_stocks = self.config['MAX_STOCKS']
+            logger.debug(f'Calling discover_stocks with max_stocks={max_stocks}')
             symbols = self.prediction_service.discover_stocks(count=max_stocks)
+            logger.debug(f'Discovery returned: {symbols}')
 
             if not symbols:
                 logger.warning('Discovery returned no stocks')

@@ -21,7 +21,7 @@ class Config:
     DB_PATH = os.environ.get('DB_PATH', str(BASE_DIR / 'foresight.db'))
 
     # Prediction cycle
-    CYCLE_INTERVAL = int(os.environ.get('CYCLE_INTERVAL', 600))  # 10 minutes
+    CYCLE_INTERVAL = int(os.environ.get('CYCLE_INTERVAL', 30))  # 30 seconds (dev), set to 600 for production
 
     # LLM Providers
     PROVIDERS = {

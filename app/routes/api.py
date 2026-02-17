@@ -116,6 +116,37 @@ def stock_detail(symbol):
     })
 
 
+@api_bp.route('/health/providers')
+def health_providers():
+    """Check health of LLM providers"""
+    from app.services.prediction_service import PredictionService
+
+    service = PredictionService(current_app.config)
+
+    providers_status = {}
+    for role, provider_name in current_app.config['PROVIDERS'].items():
+        if role in service.providers:
+            provider = service.providers[role]
+            providers_status[role] = {
+                'status': 'configured',
+                'provider': provider_name,
+                'type': type(provider).__name__
+            }
+        else:
+            providers_status[role] = {
+                'status': 'error',
+                'provider': provider_name,
+                'error': 'Failed to initialize'
+            }
+
+    all_healthy = all(p.get('status') == 'configured' for p in providers_status.values())
+
+    return jsonify({
+        'healthy': all_healthy,
+        'providers': providers_status
+    })
+
+
 @api_bp.route('/stream')
 def stream():
     """SSE endpoint for real-time prediction updates"""

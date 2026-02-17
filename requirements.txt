@@ -4,5 +4,10 @@ requests>=2.31
 gunicorn>=21.2
 python-dotenv>=1.0.0
 
+# LLM Providers (for stock discovery and prediction)
+anthropic>=0.25.0
+google-generativeai>=0.3.0
+openai>=1.10.0
+
 # Shared library (install in editable mode)
 # pip install -e /home/coolhand/shared[all]
