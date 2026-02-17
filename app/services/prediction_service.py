@@ -130,15 +130,18 @@ Return your response as JSON:
     "reasoning": "Your reasoning here"
 }}"""
 
-            response = provider.generate(prompt)
+            from llm_providers import Message
+            response = provider.complete(
+                messages=[Message(role='user', content=prompt)]
+            )
 
-            # Parse JSON response
+            # Parse JSON response (response is CompletionResponse object)
             import json
-            prediction = json.loads(response)
+            prediction = json.loads(response.content)
 
             return {
                 'provider': self.config['PROVIDERS']['prediction'],
-                'model': provider.model,
+                'model': getattr(provider, 'model', 'unknown'),
                 'prediction': prediction.get('prediction', 'NEUTRAL'),
                 'confidence': prediction.get('confidence', 0.5),
                 'reasoning': prediction.get('reasoning', 'No reasoning provided')
@@ -178,10 +181,13 @@ Consider:
 
 Return ONLY a number between 0.0 and 1.0, nothing else."""
 
-            response = provider.generate(prompt)
+            from llm_providers import Message
+            response = provider.complete(
+                messages=[Message(role='user', content=prompt)]
+            )
 
-            # Parse float response
-            confidence = float(response.strip())
+            # Parse float response (response is CompletionResponse object)
+            confidence = float(response.content.strip())
             return max(0.0, min(1.0, confidence))
 
         except Exception as e:
