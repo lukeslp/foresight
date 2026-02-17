@@ -57,6 +57,7 @@ class StockGrid {
       .enter()
       .append('g')
       .attr('class', 'tile')
+      .attr('tabindex', -1)
       .attr('transform', (d, i) => {
         const col = i % this.options.columns;
         const row = Math.floor(i / this.options.columns);
@@ -162,12 +163,16 @@ class StockGrid {
       .attr('height', 4)
       .attr('rx', 2);
 
-    // Enter transition
+    // Enter transition — promote tabindex to 0 only after fade-in completes
+    // so focus ring is never visible on an invisible tile (MED-08)
     enter
       .transition()
       .duration(750)
       .ease(d3.easeCubicOut)
-      .style('opacity', 1);
+      .style('opacity', 1)
+      .on('end', function() {
+        d3.select(this).attr('tabindex', 0);
+      });
 
     // UPDATE: existing tiles
     const merged = enter.merge(tiles);
@@ -264,9 +269,12 @@ class StockGrid {
         return this.colors.down;
       });
 
-    // Accessibility: Make tiles keyboard navigable
+    // Accessibility: update-only tiles already faded in — keep them keyboard navigable.
+    // Entering tiles start at tabindex=-1 and are promoted to 0 after the
+    // fade-in transition ends, so a focus ring is never shown on an invisible tile.
+    tiles.attr('tabindex', 0);
+
     merged
-      .attr('tabindex', 0)
       .attr('role', 'button')
       .attr('aria-label', d => {
         const direction = d.prediction === 'up' ? 'upward' :

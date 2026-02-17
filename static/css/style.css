@@ -614,6 +614,40 @@ body {
   animation: ticker-scroll 40s linear infinite;
 }
 
+.ticker-content.paused {
+  animation-play-state: paused;
+}
+
+.ticker-pause-btn {
+  flex-shrink: 0;
+  margin-right: 0.5rem;
+  padding: 0 0.5rem;
+  height: 100%;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticker-pause-btn:hover {
+  color: var(--text-primary);
+  background: var(--glass-bg-hover);
+}
+
+.ticker-pause-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+/* Visual state when ticker is paused */
+.ticker-pause-btn[aria-pressed="true"] {
+  color: var(--accent-primary);
+}
+
 /* ─── Accessibility ──────────────────────── */
 .sr-only {
   position: absolute;

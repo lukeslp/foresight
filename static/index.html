@@ -75,7 +75,7 @@
       <!-- Cycle Control -->
       <section class="panel cycle-panel" aria-labelledby="cycle-heading">
         <h2 id="cycle-heading" class="panel-heading">Cycle</h2>
-        <div id="current-cycle-info" class="cycle-info">
+        <div id="current-cycle-info" class="cycle-info" aria-live="polite" aria-atomic="true">
           <p class="cycle-status">No active cycle</p>
         </div>
         <!-- Phase progress: shown during active cycle -->
@@ -146,7 +146,7 @@
       <section class="panel" aria-labelledby="leaderboard-heading">
         <h2 id="leaderboard-heading" class="panel-heading">Leaderboard</h2>
         <div id="provider-stats" role="list">
-          <div class="loading-skeleton"></div>
+          <div class="loading-skeleton" role="status" aria-label="Loading provider statistics"></div>
         </div>
       </section>
 
@@ -173,7 +173,7 @@
         </button>
       </div>
       <div id="detail-body">
-        <div class="loading-skeleton"></div>
+        <div class="loading-skeleton" role="status" aria-label="Loading stock details"></div>
       </div>
     </div>
   </aside>
@@ -186,6 +186,12 @@
         Awaiting first cycle
       </div>
     </div>
+    <button id="ticker-pause-btn" class="ticker-pause-btn" aria-label="Pause ticker" aria-pressed="false">
+      <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" aria-hidden="true" focusable="false">
+        <rect x="0" y="0" width="3" height="12"/>
+        <rect x="7" y="0" width="3" height="12"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Scripts — all deferred; execution order preserved by HTML order -->

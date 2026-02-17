@@ -542,6 +542,24 @@ class ForesightDashboard {
         if (this.detail) this.detail.showEmpty();
       });
     }
+
+    // Ticker pause/resume toggle (WCAG 2.2.2)
+    const tickerPauseBtn = document.getElementById('ticker-pause-btn');
+    const tickerContent  = document.getElementById('ticker-content');
+    if (tickerPauseBtn && tickerContent) {
+      tickerPauseBtn.addEventListener('click', () => {
+        const paused = tickerPauseBtn.getAttribute('aria-pressed') === 'true';
+        if (paused) {
+          tickerContent.classList.remove('paused');
+          tickerPauseBtn.setAttribute('aria-pressed', 'false');
+          tickerPauseBtn.setAttribute('aria-label', 'Pause ticker');
+        } else {
+          tickerContent.classList.add('paused');
+          tickerPauseBtn.setAttribute('aria-pressed', 'true');
+          tickerPauseBtn.setAttribute('aria-label', 'Resume ticker');
+        }
+      });
+    }
   }
 
   announce(message) {

@@ -33,11 +33,11 @@ class Sidebar {
       .append('div')
       .attr('class', 'sidebar-stats');
 
-    // Leaderboard SVG
+    // Leaderboard SVG — role="list" so individual provider rows are reachable
     this.svg = this.container
       .append('svg')
       .attr('width', this.options.width)
-      .attr('role', 'img')
+      .attr('role', 'list')
       .attr('aria-label', 'Provider accuracy leaderboard')
       .classed('sidebar-leaderboard', true);
   }
