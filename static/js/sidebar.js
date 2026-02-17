@@ -109,10 +109,9 @@ class Sidebar {
       .attr('class', 'stat-card')
       .style('background', this.colors.glassBg)
       .style('border', `1px solid ${this.colors.glassBorder}`)
-      .style('border-radius', '12px')
+      .style('border-radius', '4px')
       .style('padding', '16px')
       .style('margin-bottom', '12px')
-      .style('backdrop-filter', 'blur(10px)')
       .style('opacity', 0);
 
     cardEnter.append('div')
@@ -356,14 +355,14 @@ class Sidebar {
         d3.select(this).select('.row-bg')
           .transition()
           .duration(200)
-          .attr('stroke', '#60a5fa')
+          .attr('stroke', this.colors.accentPrimary)
           .attr('stroke-width', 2);
       })
       .on('mouseleave', function() {
         d3.select(this).select('.row-bg')
           .transition()
           .duration(200)
-          .attr('stroke', 'rgba(255, 255, 255, 0.1)')
+          .attr('stroke', this.colors.glassBorder)
           .attr('stroke-width', 1);
       })
       .style('cursor', 'pointer');
