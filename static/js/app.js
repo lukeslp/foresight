@@ -224,6 +224,7 @@ class ForesightDashboard {
       // Map backend event types to frontend handlers
       case 'prediction':
       case 'prediction_made':  // Backend event type
+        if (window.setPhase) window.setPhase('analysis');
         this.handlePrediction(data);
         break;
       case 'cycle_start':
@@ -234,8 +235,18 @@ class ForesightDashboard {
         this.handleCycleComplete(data);
         break;
       case 'stock_discovered':  // Backend event type
+        if (window.setPhase) window.setPhase('discovery');
         // Reload grid to show new stock
         this.loadCurrentCycle();
+        break;
+      case 'analysis_start':
+        if (window.setPhase) window.setPhase('analysis');
+        break;
+      case 'debate_start':
+        if (window.setPhase) window.setPhase('debate');
+        break;
+      case 'consensus_start':
+        if (window.setPhase) window.setPhase('consensus');
         break;
       case 'price_update':  // Backend event type
         // Could update specific stock, but reload for now
@@ -304,15 +315,15 @@ class ForesightDashboard {
   }
 
   updateConnectionStatus(status) {
-    const indicator = document.querySelector('#connection-status');
-    if (!indicator) return;
+    const dot  = document.getElementById('status-indicator');
+    const text = document.getElementById('status-text');
 
-    if (status === 'connected') {
-      indicator.textContent = '🟢 Connected';
-      indicator.style.color = 'var(--stock-up)';
-    } else {
-      indicator.textContent = '🔴 Disconnected';
-      indicator.style.color = 'var(--stock-down)';
+    if (dot) {
+      dot.classList.toggle('connected',    status === 'connected');
+      dot.classList.toggle('disconnected', status !== 'connected');
+    }
+    if (text) {
+      text.textContent = status === 'connected' ? 'Connected' : 'Disconnected';
     }
   }
 
