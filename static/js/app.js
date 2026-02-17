@@ -198,6 +198,18 @@ class ForesightDashboard {
         this.detail.update(data);
       }
 
+      // Open detail panel
+      const panel = document.getElementById('stock-detail');
+      const backdrop = document.getElementById('detail-backdrop');
+      if (panel) {
+        panel.setAttribute('aria-hidden', 'false');
+        panel.focus();
+      }
+      if (backdrop) {
+        backdrop.style.display = 'block';
+        requestAnimationFrame(() => backdrop.classList.add('visible'));
+      }
+
       if (this.grid) {
         this.grid.highlightTile(symbol);
       }
@@ -208,6 +220,18 @@ class ForesightDashboard {
       console.error(`Failed to load stock ${symbol}:`, error);
       this.showError(`Failed to load ${symbol} details`);
     }
+  }
+
+  closeDetail() {
+    const panel = document.getElementById('stock-detail');
+    const backdrop = document.getElementById('detail-backdrop');
+    if (panel) panel.setAttribute('aria-hidden', 'true');
+    if (backdrop) {
+      backdrop.classList.remove('visible');
+      setTimeout(() => { backdrop.style.display = 'none'; }, 300);
+    }
+    this.selectedStock = null;
+    if (this.grid) this.grid.highlightTile(null);
   }
 
   updateGrid(predictions) {
@@ -411,31 +435,30 @@ class ForesightDashboard {
       right: 20px;
       background: var(--glass-bg);
       border: 1px solid var(--glass-border);
-      border-radius: 8px;
-      padding: 12px 20px;
+      border-radius: 4px;
+      padding: 10px 16px;
       color: var(--text-primary);
+      font-family: var(--font-data);
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
       backdrop-filter: blur(10px);
-      z-index: 1000;
-      animation: slideIn 0.3s ease-out;
+      z-index: 2000;
     `;
 
     document.body.appendChild(toast);
 
+    toast.classList.add('toast-notification');
     setTimeout(() => {
-      toast.style.animation = 'slideOut 0.3s ease-out';
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.25s ease-out';
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
 
   showError(message) {
     console.error(message);
-    const statusEl = document.querySelector('#status');
-    if (statusEl) {
-      statusEl.innerHTML = `
-        <h2 style="color: var(--stock-down);">Error</h2>
-        <p>${message}</p>
-      `;
-    }
+    // Show as a notification since there's no dedicated #status element
+    this.showNotification(`⚠ ${message}`);
   }
 
   showEmptyState() {
