@@ -37,6 +37,38 @@ class ForesightDashboard {
 
     // Keyboard navigation
     this.setupKeyboardNav();
+
+    // Wire cycle control buttons
+    const startBtn = document.getElementById('start-cycle-btn');
+    const stopBtn  = document.getElementById('stop-cycle-btn');
+
+    if (startBtn) {
+      startBtn.addEventListener('click', async () => {
+        startBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = false;
+        try {
+          await fetch('/api/cycle/start', { method: 'POST' });
+        } catch (e) {
+          console.error('Failed to start cycle:', e);
+          startBtn.disabled = false;
+          if (stopBtn) stopBtn.disabled = true;
+        }
+      });
+    }
+
+    if (stopBtn) {
+      stopBtn.addEventListener('click', async () => {
+        if (!this.currentCycle) return;
+        try {
+          await fetch(`/api/cycle/${this.currentCycle.id}/stop`, { method: 'POST' });
+        } catch (e) {
+          console.error('Failed to stop cycle:', e);
+        }
+        stopBtn.disabled = true;
+        if (startBtn) startBtn.disabled = false;
+        if (window.resetPhases) window.resetPhases();
+      });
+    }
   }
 
   initializeVisualizations() {
@@ -303,6 +335,7 @@ class ForesightDashboard {
     this.currentCycle = data.cycle;
     this.showNotification('New prediction cycle started');
     if (window.setPhase) window.setPhase('discovery');
+    this.setCycleButtonState(true);
     this.loadCurrentCycle();
   }
 
@@ -310,8 +343,16 @@ class ForesightDashboard {
     console.log('Cycle completed:', data);
     this.showNotification('Prediction cycle completed');
     if (window.resetPhases) window.resetPhases();
+    this.setCycleButtonState(false);
     this.loadCurrentCycle();
     this.loadStats();
+  }
+
+  setCycleButtonState(running) {
+    const startBtn = document.getElementById('start-cycle-btn');
+    const stopBtn  = document.getElementById('stop-cycle-btn');
+    if (startBtn) startBtn.disabled = running;
+    if (stopBtn)  stopBtn.disabled  = !running;
   }
 
   updateConnectionStatus(status) {

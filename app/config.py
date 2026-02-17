@@ -33,8 +33,8 @@ class Config:
     # Model overrides (optional, leave empty for provider defaults)
     MODEL_OVERRIDES = {
         'xai': 'grok-3',
-        'anthropic': 'claude-3-5-sonnet-latest',
-        'gemini': 'gemini-2.0-flash-exp',
+        'anthropic': 'claude-3-5-sonnet-20240620',
+        'gemini': 'gemini-1.5-flash',
         'cohere': 'command-r-plus',
         'mistral': 'mistral-large-latest',
         'perplexity': 'sonar',
