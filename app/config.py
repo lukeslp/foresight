@@ -26,8 +26,8 @@ class Config:
     # LLM Providers
     PROVIDERS = {
         'discovery': os.environ.get('DISCOVERY_PROVIDER', 'xai'),      # Grok for stock discovery
-        'prediction': os.environ.get('PREDICTION_PROVIDER', 'anthropic'),  # Claude for predictions
-        'synthesis': os.environ.get('SYNTHESIS_PROVIDER', 'gemini')    # Gemini for confidence scoring
+        'prediction': os.environ.get('PREDICTION_PROVIDER', 'xai'),    # Grok for predictions (temp workaround)
+        'synthesis': os.environ.get('SYNTHESIS_PROVIDER', 'xai')       # Grok for synthesis (temp workaround)
     }
 
     # API Keys (loaded from environment)
