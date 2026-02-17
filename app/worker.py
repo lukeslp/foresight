@@ -37,6 +37,8 @@ class PredictionWorker:
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.current_cycle_id: Optional[int] = None
+        self.last_cycle_time: Optional[float] = None
+        self.total_cycles_completed: int = 0
 
         # Initialize services
         self.stock_service = StockService()
@@ -116,7 +118,9 @@ class PredictionWorker:
 
             # Phase 3: Complete cycle
             db.complete_cycle(cycle_id)
-            logger.info(f'Completed prediction cycle {cycle_id}')
+            self.total_cycles_completed += 1
+            self.last_cycle_time = time.time()
+            logger.info(f'Completed prediction cycle {cycle_id} (total: {self.total_cycles_completed})')
             # Note: cycle_complete event is auto-emitted by db.complete_cycle()
 
         except Exception as e:
@@ -127,6 +131,7 @@ class PredictionWorker:
 
         finally:
             self.current_cycle_id = None
+            self.last_cycle_time = time.time()
 
     def _discover_stocks(self, db: ForesightDB, cycle_id: int) -> list:
         """
@@ -278,8 +283,23 @@ class PredictionWorker:
 
     def get_status(self) -> dict:
         """Get worker status"""
-        return {
+        import time
+        status = {
             'running': self.running,
             'thread_alive': self.is_alive(),
-            'current_cycle_id': self.current_cycle_id
+            'current_cycle_id': self.current_cycle_id,
+            'total_cycles_completed': self.total_cycles_completed,
+            'last_cycle_time': self.last_cycle_time
         }
+
+        # Check if worker is stale (no cycle in >2x interval)
+        if self.last_cycle_time:
+            time_since_last = time.time() - self.last_cycle_time
+            max_allowed = self.config['CYCLE_INTERVAL'] * 2
+            status['is_healthy'] = time_since_last < max_allowed
+            status['seconds_since_last_cycle'] = int(time_since_last)
+        else:
+            status['is_healthy'] = True if self.is_alive() else False
+            status['seconds_since_last_cycle'] = None
+
+        return status

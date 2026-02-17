@@ -248,6 +248,8 @@ def worker_status():
 @api_bp.route('/cycle/start', methods=['POST'])
 def start_cycle():
     """Manually trigger a new prediction cycle"""
+    import threading
+
     db = get_db()
 
     # Check if there's already an active cycle
@@ -267,12 +269,21 @@ def start_cycle():
             'message': 'Restart the application to start the worker'
         }), 503
 
-    # The worker runs cycles automatically based on CYCLE_INTERVAL
-    # This endpoint just reports status
+    # Trigger an immediate cycle in the worker by calling _run_prediction_cycle directly
+    # This runs in a background thread so we don't block the response
+    def trigger_cycle():
+        try:
+            worker._run_prediction_cycle()
+            current_app.logger.info('Manual cycle triggered via /api/cycle/start')
+        except Exception as e:
+            current_app.logger.error(f'Manual cycle error: {e}', exc_info=True)
+
+    cycle_thread = threading.Thread(target=trigger_cycle, daemon=True)
+    cycle_thread.start()
+
     return jsonify({
-        'status': 'worker_running',
-        'message': 'Background worker is running and will start cycles automatically',
-        'next_cycle_in': f'{current_app.config["CYCLE_INTERVAL"]} seconds'
+        'status': 'cycle_triggered',
+        'message': 'Prediction cycle triggered immediately'
     }), 200
 
 
