@@ -45,24 +45,24 @@
 
   <!-- Intelligence Bar: Stats Row -->
   <div class="intelligence-bar" role="complementary" aria-label="System statistics">
-    <div class="intel-stat">
-      <span class="intel-value" id="stat-total-predictions">—</span>
-      <span class="intel-label">Predictions</span>
+    <div class="intel-stat" role="group" aria-label="Total predictions">
+      <span class="intel-value" id="stat-total-predictions" aria-live="polite">—</span>
+      <span class="intel-label" aria-hidden="true">Predictions</span>
     </div>
     <div class="intel-divider" aria-hidden="true"></div>
-    <div class="intel-stat">
-      <span class="intel-value" id="stat-overall-accuracy">—</span>
-      <span class="intel-label">Accuracy</span>
+    <div class="intel-stat" role="group" aria-label="Overall accuracy">
+      <span class="intel-value" id="stat-overall-accuracy" aria-live="polite">—</span>
+      <span class="intel-label" aria-hidden="true">Accuracy</span>
     </div>
     <div class="intel-divider" aria-hidden="true"></div>
-    <div class="intel-stat">
-      <span class="intel-value" id="stat-cycles">—</span>
-      <span class="intel-label">Cycles</span>
+    <div class="intel-stat" role="group" aria-label="Prediction cycles">
+      <span class="intel-value" id="stat-cycles" aria-live="polite">—</span>
+      <span class="intel-label" aria-hidden="true">Cycles</span>
     </div>
     <div class="intel-divider" aria-hidden="true"></div>
-    <div class="intel-stat">
-      <span class="intel-value" id="stat-stocks">—</span>
-      <span class="intel-label">Stocks</span>
+    <div class="intel-stat" role="group" aria-label="Stocks tracked">
+      <span class="intel-value" id="stat-stocks" aria-live="polite">—</span>
+      <span class="intel-label" aria-hidden="true">Stocks</span>
     </div>
   </div>
 
@@ -79,21 +79,21 @@
           <p class="cycle-status">No active cycle</p>
         </div>
         <!-- Phase progress: shown during active cycle -->
-        <div class="phase-steps" id="phase-steps" aria-live="polite" aria-label="Prediction cycle phases">
+        <div class="phase-steps" id="phase-steps" aria-label="Prediction cycle phases">
           <div class="phase-step" data-phase="discovery">
-            <span class="phase-step-num">I</span>
+            <span class="phase-step-num" aria-hidden="true">I</span>
             <span class="phase-step-name">Discovery</span>
           </div>
           <div class="phase-step" data-phase="analysis">
-            <span class="phase-step-num">II</span>
+            <span class="phase-step-num" aria-hidden="true">II</span>
             <span class="phase-step-name">Analysis</span>
           </div>
           <div class="phase-step" data-phase="debate">
-            <span class="phase-step-num">III</span>
+            <span class="phase-step-num" aria-hidden="true">III</span>
             <span class="phase-step-name">Debate</span>
           </div>
           <div class="phase-step" data-phase="consensus">
-            <span class="phase-step-num">IV</span>
+            <span class="phase-step-num" aria-hidden="true">IV</span>
             <span class="phase-step-name">Consensus</span>
           </div>
         </div>
