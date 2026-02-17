@@ -349,17 +349,17 @@ class Sidebar {
     rowMerge.select('.prediction-count')
       .text(d => `${d.total_predictions || 0} predictions`);
 
-    // Hover effects
+    // Hover effects (arrow functions so `this` stays the Sidebar instance)
     rowMerge
-      .on('mouseenter', function() {
-        d3.select(this).select('.row-bg')
+      .on('mouseenter', (event) => {
+        d3.select(event.currentTarget).select('.row-bg')
           .transition()
           .duration(200)
           .attr('stroke', this.colors.accentPrimary)
           .attr('stroke-width', 2);
       })
-      .on('mouseleave', function() {
-        d3.select(this).select('.row-bg')
+      .on('mouseleave', (event) => {
+        d3.select(event.currentTarget).select('.row-bg')
           .transition()
           .duration(200)
           .attr('stroke', this.colors.glassBorder)
