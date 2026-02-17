@@ -43,13 +43,30 @@ class Sidebar {
   }
 
   update(stats) {
-    if (!stats || !stats.providers || stats.providers.length === 0) {
+    // API returns {by_provider: [], overall_accuracy, total_predictions, completed_cycles, total_cycles}
+    // Transform to expected format {summary: {...}, providers: [...]}
+    if (!stats) {
       this.showEmpty();
       return;
     }
 
-    this.updateStats(stats.summary);
-    this.updateLeaderboard(stats.providers);
+    const summary = {
+      total_predictions: stats.total_predictions || 0,
+      accuracy_rate: stats.overall_accuracy,
+      active_stocks: 0, // Not provided by current API
+      avg_confidence: null, // Not provided by current API
+      completed_cycles: stats.completed_cycles || 0
+    };
+
+    const providers = stats.by_provider || [];
+
+    if (providers.length === 0) {
+      this.showEmpty();
+      return;
+    }
+
+    this.updateStats(summary);
+    this.updateLeaderboard(providers);
   }
 
   updateStats(summary) {

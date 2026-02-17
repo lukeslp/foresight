@@ -76,7 +76,8 @@ class ForesightDashboard {
 
       if (data.cycle) {
         this.currentCycle = data.cycle;
-        this.updateGrid(data.cycle.stocks || []);
+        // API returns predictions as separate top-level field, not in cycle.stocks
+        this.updateGrid(data.predictions || []);
       } else {
         console.log('No active cycle');
         this.showEmptyState();
@@ -198,14 +199,25 @@ class ForesightDashboard {
       case 'heartbeat':
         // Keep-alive, no action needed
         break;
+      // Map backend event types to frontend handlers
       case 'prediction':
+      case 'prediction_made':  // Backend event type
         this.handlePrediction(data);
         break;
       case 'cycle_start':
         this.handleCycleStart(data);
         break;
       case 'cycle_complete':
+      case 'cycle_end':  // Backend event type
         this.handleCycleComplete(data);
+        break;
+      case 'stock_discovered':  // Backend event type
+        // Reload grid to show new stock
+        this.loadCurrentCycle();
+        break;
+      case 'price_update':  // Backend event type
+        // Could update specific stock, but reload for now
+        this.loadCurrentCycle();
         break;
       default:
         console.log('Unknown event type:', data.type);
