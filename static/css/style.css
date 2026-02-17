@@ -3,7 +3,7 @@
    Design system: Neoclassical Financial Intelligence
    ═══════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
+/* Fonts loaded via <link> in HTML — no @import needed */
 
 /* ─── Tokens ─────────────────────────────── */
 :root {
@@ -143,6 +143,8 @@ body {
   height: 2px;
   box-shadow: 0 0 12px var(--accent-glow);
 }
+
+/* bottom-rule: intentional fallback to .masthead-rule (subtle 1px line) */
 
 .masthead-inner {
   display: grid;
@@ -401,8 +403,8 @@ body {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #dba831;
-  border-color: #dba831;
+  background: color-mix(in srgb, var(--accent-primary) 80%, white);
+  border-color: color-mix(in srgb, var(--accent-primary) 80%, white);
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
@@ -626,7 +628,7 @@ body {
 }
 
 /* ─── Responsive ─────────────────────────── */
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   .masthead-inner {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;

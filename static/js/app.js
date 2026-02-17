@@ -346,14 +346,18 @@ class ForesightDashboard {
 
     // Strip the placeholder if still present
     if (ticker.dataset.init !== 'true') {
-      ticker.textContent = '';
+      ticker.innerHTML = '';
       ticker.dataset.init = 'true';
     }
 
-    const span = document.createElement('span');
-    span.className = 'ticker-item';
-    span.textContent = `${text}   `;
-    ticker.appendChild(span);
+    // Track items in an array so we can rebuild the doubled content
+    if (!this._tickerItems) this._tickerItems = [];
+    this._tickerItems.push(`${text}   `);
+
+    // The -50% translateX animation requires content doubled inside the container
+    // for a seamless infinite scroll loop (second half is the invisible reset point)
+    const half = this._tickerItems.join('');
+    ticker.textContent = half + half;
   }
 
   handleCycleStart(data) {
