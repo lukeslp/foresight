@@ -104,10 +104,11 @@ class StockGrid {
     enter
       .append('text')
       .attr('class', 'price')
-      .attr('x', tileSize / 2)
-      .attr('y', 55)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', 14)
+      .attr('x', 10)
+      .attr('y', 50)
+      .attr('text-anchor', 'start')
+      .attr('font-size', 12)
+      .attr('font-family', "'JetBrains Mono', monospace")
       .attr('fill', this.colors.textMuted)
       .text(d => d.price ? `$${d.price.toFixed(2)}` : '--');
 
@@ -115,25 +116,30 @@ class StockGrid {
     enter
       .append('text')
       .attr('class', 'change')
-      .attr('x', tileSize / 2)
-      .attr('y', 75)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', 12)
+      .attr('x', 10)
+      .attr('y', 68)
+      .attr('text-anchor', 'start')
+      .attr('font-size', 11)
+      .attr('font-family', "'JetBrains Mono', monospace")
       .attr('font-weight', 500);
 
-    // Prediction badge
+    // Prediction direction label (replaces badge circle)
     enter
-      .append('circle')
+      .append('text')
       .attr('class', 'prediction-badge')
-      .attr('cx', tileSize - 15)
-      .attr('cy', 15)
-      .attr('r', 8);
+      .attr('x', tileSize - 8)
+      .attr('y', 20)
+      .attr('text-anchor', 'end')
+      .attr('font-size', 8)
+      .attr('font-family', "'JetBrains Mono', monospace")
+      .attr('font-weight', 700)
+      .attr('letter-spacing', '0.1em');
 
-    // Prediction icon (arrow)
+    // Prediction direction arrow icon (keep for redundant encoding)
     enter
       .append('path')
       .attr('class', 'prediction-arrow')
-      .attr('transform', `translate(${tileSize - 15}, 15)`)
+      .attr('transform', `translate(${tileSize - 10}, 15)`)
       .attr('pointer-events', 'none');
 
     // Accuracy bar background
