@@ -145,7 +145,9 @@ Return your final decision as JSON:
 
         try:
             provider = self.providers['discovery']
-            logger.debug(f'Using {provider.__class__.__name__} for stock discovery')
+            provider_name = self.config['PROVIDERS']['discovery']
+            model = self.config.get('MODEL_OVERRIDES', {}).get(provider_name)
+            logger.debug(f'Using {provider.__class__.__name__} ({model or "default"}) for stock discovery')
 
             prompt = f"""You are a stock market analyst. Identify {count} publicly traded stocks
 that are currently interesting for short-term trading (next 1-7 days).
@@ -163,7 +165,8 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
             from llm_providers import Message
             logger.debug(f'Calling provider.complete() for stock discovery')
             response = provider.complete(
-                messages=[Message(role='user', content=prompt)]
+                messages=[Message(role='user', content=prompt)],
+                model=model
             )
             logger.debug(f'Provider returned: {response.content[:200]}...')
 
@@ -258,6 +261,8 @@ Return your response as JSON:
 
         try:
             provider = self.providers['synthesis']
+            provider_name = self.config['PROVIDERS']['synthesis']
+            model = self.config.get('MODEL_OVERRIDES', {}).get(provider_name)
 
             prompt = f"""You are analyzing multiple stock predictions.
 Synthesize these predictions into a single confidence score (0.0 to 1.0).
@@ -274,7 +279,8 @@ Return ONLY a number between 0.0 and 1.0, nothing else."""
 
             from llm_providers import Message
             response = provider.complete(
-                messages=[Message(role='user', content=prompt)]
+                messages=[Message(role='user', content=prompt)],
+                model=model
             )
 
             # Parse float response (response is CompletionResponse object)
