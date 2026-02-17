@@ -96,6 +96,25 @@ class ForesightDashboard {
       if (this.sidebar) {
         this.sidebar.update(data);
       }
+
+      // Update intelligence bar stats
+      const totalPreds = document.getElementById('stat-total-predictions');
+      const overallAcc  = document.getElementById('stat-overall-accuracy');
+      const cyclesEl    = document.getElementById('stat-cycles');
+      const stocksEl    = document.getElementById('stat-stocks');
+
+      if (totalPreds && data.total_predictions !== undefined) {
+        totalPreds.textContent = data.total_predictions.toLocaleString();
+      }
+      if (overallAcc && data.overall_accuracy !== undefined) {
+        overallAcc.textContent = `${(data.overall_accuracy * 100).toFixed(1)}%`;
+      }
+      if (cyclesEl && data.total_cycles !== undefined) {
+        cyclesEl.textContent = data.total_cycles.toLocaleString();
+      }
+      if (stocksEl && data.total_stocks !== undefined) {
+        stocksEl.textContent = data.total_stocks.toLocaleString();
+      }
     } catch (error) {
       console.error('Failed to load stats:', error);
     }
@@ -236,20 +255,50 @@ class ForesightDashboard {
     // Reload stats if provider stats might have changed
     this.loadStats();
 
-    // Visual notification
-    this.showNotification(`New prediction for ${data.stock?.symbol || 'stock'}`);
+    // Update ticker tape with latest prediction
+    const symbol = data.ticker || data.stock?.symbol || data.stock?.ticker || '';
+    const direction = data.predicted_direction || data.prediction || '';
+    if (symbol) {
+      const dirLabel = direction === 'up' ? '▲' : direction === 'down' ? '▼' : '—';
+      this.addTickerItem(`${symbol} ${dirLabel}`);
+    }
+  }
+
+  addTickerItem(text) {
+    const ticker = document.getElementById('ticker-content');
+    if (!ticker) return;
+
+    // Strip the placeholder if still present
+    if (ticker.dataset.init !== 'true') {
+      ticker.textContent = '';
+      ticker.dataset.init = 'true';
+    }
+
+    const span = document.createElement('span');
+    span.className = 'ticker-item';
+    span.textContent = `${text}   `;
+    ticker.appendChild(span);
+
+    // Mirror for seamless scroll loop — keep twin in sync
+    const twin = document.getElementById('ticker-twin');
+    if (twin) {
+      const clone = span.cloneNode(true);
+      twin.appendChild(clone);
+    }
   }
 
   handleCycleStart(data) {
     console.log('Cycle started:', data);
     this.currentCycle = data.cycle;
     this.showNotification('New prediction cycle started');
+    if (window.setPhase) window.setPhase('discovery');
     this.loadCurrentCycle();
   }
 
   handleCycleComplete(data) {
     console.log('Cycle completed:', data);
     this.showNotification('Prediction cycle completed');
+    if (window.resetPhases) window.resetPhases();
     this.loadCurrentCycle();
     this.loadStats();
   }
