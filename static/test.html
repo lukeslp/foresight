@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foresight Visualization Test</title>
+    <link rel="stylesheet" href="/foresight/static/css/style.css">
+    <style>
+        body { padding: 20px; }
+        #test-grid { width: 100%; min-height: 600px; }
+    </style>
+</head>
+<body>
+    <h1 style="color: var(--accent-primary)">Foresight Visualization Test</h1>
+    <p style="color: var(--text-secondary)">Testing if D3.js and grid visualization load correctly</p>
+
+    <div id="status" style="margin: 20px 0; padding: 15px; background: var(--glass-bg); border-radius: 8px;">
+        <p id="d3-status">Checking D3.js...</p>
+        <p id="data-status">Checking API...</p>
+        <p id="grid-status">Initializing grid...</p>
+    </div>
+
+    <div id="test-grid" class="glass-panel"></div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="/foresight/static/js/grid.js"></script>
+    <script>
+        // Test D3.js
+        document.getElementById('d3-status').innerHTML =
+            typeof d3 !== 'undefined'
+                ? '✅ D3.js loaded (v' + d3.version + ')'
+                : '❌ D3.js NOT loaded';
+
+        document.getElementById('d3-status').style.color =
+            typeof d3 !== 'undefined' ? '#0077bb' : '#ee7733';
+
+        // Test API
+        fetch('/api/current')
+            .then(r => r.json())
+            .then(data => {
+                const count = data.predictions?.length || 0;
+                document.getElementById('data-status').innerHTML =
+                    `✅ API working - ${count} predictions in cycle ${data.cycle?.id}`;
+                document.getElementById('data-status').style.color = '#0077bb';
+
+                // Test Grid
+                try {
+                    const grid = new StockGrid('#test-grid', {
+                        columns: 4,
+                        tileSize: 120,
+                        gap: 8
+                    });
+
+                    // Transform data
+                    const gridData = data.predictions.map(pred => ({
+                        symbol: pred.ticker,
+                        name: pred.name,
+                        price: pred.initial_price,
+                        prediction: pred.predicted_direction,
+                        confidence: pred.confidence
+                    }));
+
+                    grid.update(gridData);
+
+                    document.getElementById('grid-status').innerHTML =
+                        `✅ Grid rendered - ${gridData.length} tiles with blue/orange colors!`;
+                    document.getElementById('grid-status').style.color = '#0077bb';
+                } catch (err) {
+                    document.getElementById('grid-status').innerHTML =
+                        `❌ Grid failed: ${err.message}`;
+                    document.getElementById('grid-status').style.color = '#ee7733';
+                }
+            })
+            .catch(err => {
+                document.getElementById('data-status').innerHTML =
+                    `❌ API failed: ${err.message}`;
+                document.getElementById('data-status').style.color = '#ee7733';
+            });
+    </script>
+</body>
+</html>
