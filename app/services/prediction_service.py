@@ -132,7 +132,8 @@ Return your response as JSON:
 
             from llm_providers import Message
             response = provider.complete(
-                messages=[Message(role='user', content=prompt)]
+                messages=[Message(role='user', content=prompt)],
+                model='claude-3-5-sonnet-latest'  # Use latest Sonnet model
             )
 
             # Parse JSON response (response is CompletionResponse object)
@@ -141,7 +142,7 @@ Return your response as JSON:
 
             return {
                 'provider': self.config['PROVIDERS']['prediction'],
-                'model': getattr(provider, 'model', 'unknown'),
+                'model': 'claude-3-5-sonnet-latest',
                 'prediction': prediction.get('prediction', 'NEUTRAL'),
                 'confidence': prediction.get('confidence', 0.5),
                 'reasoning': prediction.get('reasoning', 'No reasoning provided')
@@ -183,7 +184,8 @@ Return ONLY a number between 0.0 and 1.0, nothing else."""
 
             from llm_providers import Message
             response = provider.complete(
-                messages=[Message(role='user', content=prompt)]
+                messages=[Message(role='user', content=prompt)],
+                model='gemini-2.0-flash-exp'  # Use Gemini for synthesis
             )
 
             # Parse float response (response is CompletionResponse object)
