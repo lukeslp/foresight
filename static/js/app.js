@@ -53,7 +53,7 @@ class ForesightDashboard {
         startBtn.disabled = true;
         if (stopBtn) stopBtn.disabled = false;
         try {
-          await fetch(`${API_ROOT}api/cycle/start', { method: 'POST' });
+          await fetch(`${API_ROOT}api/cycle/start`, { method: 'POST' });
         } catch (e) {
           console.error('Failed to start cycle:', e);
           startBtn.disabled = false;
@@ -66,7 +66,7 @@ class ForesightDashboard {
       stopBtn.addEventListener('click', async () => {
         if (!this.currentCycle) return;
         try {
-          await fetch(`/api/cycle/${this.currentCycle.id}/stop`, { method: 'POST' });
+          await fetch(`${API_ROOT}api/cycle/${this.currentCycle.id}/stop`, { method: 'POST' });
         } catch (e) {
           console.error('Failed to stop cycle:', e);
         }
@@ -109,7 +109,7 @@ class ForesightDashboard {
 
   async loadCurrentCycle() {
     try {
-      const response = await fetch(`${API_ROOT}api/current');
+      const response = await fetch(`${API_ROOT}api/current`);
       const data = await response.json();
 
       if (data.cycle) {
@@ -155,7 +155,7 @@ class ForesightDashboard {
 
   async loadStats() {
     try {
-      const response = await fetch(`${API_ROOT}api/stats');
+      const response = await fetch(`${API_ROOT}api/stats`);
       const data = await response.json();
 
       if (this.sidebar) {
@@ -189,7 +189,7 @@ class ForesightDashboard {
     this.selectedStock = symbol;
 
     try {
-      const response = await fetch(`/api/stock/${symbol}`);
+      const response = await fetch(`${API_ROOT}api/stock/${symbol}`);
       const data = await response.json();
 
       if (this.detail) {
