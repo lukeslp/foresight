@@ -321,8 +321,11 @@ class ForesightDashboard {
         break;
       case 'stock_discovered':  // Backend event type
         if (window.setPhase) window.setPhase('discovery');
-        // Reload grid to show new stock
-        this.loadCurrentCycle();
+        // Add a placeholder tile for the newly discovered stock
+        if (data.data?.stock_id && this.grid) {
+          const ticker = data.data?.ticker || '';
+          if (ticker) this.grid.patchTile(ticker, { symbol: ticker });
+        }
         break;
       case 'analysis_start':
         if (window.setPhase) window.setPhase('analysis');
@@ -334,8 +337,11 @@ class ForesightDashboard {
         if (window.setPhase) window.setPhase('consensus');
         break;
       case 'price_update':  // Backend event type
-        // Could update specific stock, but reload for now
-        this.loadCurrentCycle();
+        // Patch the specific tile's price without a full reload
+        if (data.data?.stock_id && this.grid) {
+          const price = data.data?.price;
+          if (price) this.grid.patchTile(data.data?.ticker || '', { price });
+        }
         break;
       default:
         console.log('Unknown event type:', data.type);
@@ -345,11 +351,14 @@ class ForesightDashboard {
   handlePrediction(data) {
     console.log('New prediction:', data);
 
-    // Reload current cycle to get updated data
-    this.loadCurrentCycle();
-
-    // Reload stats if provider stats might have changed
-    this.loadStats();
+    // Patch the grid in-memory from the SSE payload — avoids a full fetch+re-render
+    // during active cycles where many predictions arrive in quick succession
+    const symbol = data.ticker || data.stock?.symbol || data.stock?.ticker || '';
+    const direction = data.predicted_direction || data.prediction || data.data?.direction || '';
+    const confidence = data.confidence || data.data?.confidence;
+    if (symbol && this.grid) {
+      this.grid.patchTile(symbol, { prediction: direction, confidence });
+    }
 
     // Update ticker tape with latest prediction
     const symbol = data.ticker || data.stock?.symbol || data.stock?.ticker || '';
