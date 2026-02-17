@@ -172,6 +172,23 @@ class StockGrid {
     // UPDATE: existing tiles
     const merged = enter.merge(tiles);
 
+    // Update confidence stripe — left-edge accent, max 5px wide
+    merged
+      .select('.confidence-stripe')
+      .transition()
+      .duration(750)
+      .ease(d3.easeCubicInOut)
+      .attr('width', d => {
+        if (!d.confidence) return 0;
+        return Math.max(0, Math.min(5, d.confidence * 5));
+      })
+      .attr('fill', d => {
+        if (!d.prediction) return this.colors.flat;
+        return d.prediction === 'up' ? this.colors.up :
+               d.prediction === 'down' ? this.colors.down :
+               this.colors.flat;
+      });
+
     // Update price
     merged
       .select('.price')
@@ -196,11 +213,17 @@ class StockGrid {
         return d.change > 0 ? this.colors.up : this.colors.down;
       });
 
-    // Update prediction badge
+    // Update prediction badge text
     merged
       .select('.prediction-badge')
       .transition()
       .duration(500)
+      .text(d => {
+        if (!d.prediction) return '—';
+        if (d.prediction === 'up') return 'UP';
+        if (d.prediction === 'down') return 'DN';
+        return '—';
+      })
       .attr('fill', d => {
         if (!d.prediction) return this.colors.flat;
         return d.prediction === 'up' ? this.colors.up :
