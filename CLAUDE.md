@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foresight is a stock prediction dashboard. A background worker runs continuous prediction cycles: Grok discovers interesting stocks, Claude performs technical analysis, a second xAI instance provides contrarian analysis, and Gemini moderates a debate to produce a consensus prediction. Accuracy is tracked over time.
+Foresight is a stock prediction dashboard. A background worker runs continuous prediction cycles with a staged provider democracy: core (`xai`, `gemini`), join (`anthropic`, `openai`, `perplexity`), and side (`mistral`, `cohere`) providers debate at discovery, analysis, council vote, and final synthesis. Accuracy is tracked over time.
 
 **Port**: 5062 | **URL**: https://dr.eamer.dev/foresight
 
@@ -28,13 +28,10 @@ sm logs foresight-api
 
 The `PredictionWorker` (`app/worker.py`) runs in a background daemon thread:
 
-1. **Phase 1 — Discovery**: `PredictionService.discover_stocks()` calls xAI/Grok, returns a JSON array of ticker symbols
+1. **Phase 1 — Discovery**: `PredictionService.discover_stocks_debate()` runs a provider swarm and returns weighted ticker candidates
 2. **Phase 2 — Validation**: Each symbol is validated via yfinance; invalid or unfetchable symbols are dropped
-3. **Phase 3 — Multi-Agent Debate**: For each stock:
-   - **Primary analyst** (Anthropic/Claude): technical analysis via `generate_prediction()`
-   - **Secondary analyst** (xAI/Grok): contrarian view via direct `ProviderFactory` call
-   - **Head of Research** (Gemini): moderates via `debate_and_vote()`, returns consensus JSON
-4. **Phase 4 — Storage**: Individual analyst reports + consensus stored in `predictions` table
+3. **Phase 3 — Multi-Agent Debate**: For each stock, each provider runs sub-agent analysis via `generate_prediction_swarm()`
+4. **Phase 4 — Voting + Synthesis**: Weighted council vote plus weighted multi-provider synthesis via `synthesize_council_swarm()`
 
 ### LLM Provider Roles
 
@@ -43,7 +40,7 @@ Configured via environment or `app/config.py`:
 | Role | Default Provider | Model | Purpose |
 |------|-----------------|-------|---------|
 | `discovery` | `xai` | `grok-2-1212` | Stock discovery |
-| `prediction` | `anthropic` | `claude-3-5-sonnet-20241022` | Technical analysis |
+| `prediction` | `anthropic` | `claude-sonnet-4-20250514` | Technical analysis |
 | `synthesis` | `gemini` | `gemini-2.0-flash-exp` | Debate moderator / confidence synthesis |
 
 Override via env vars: `DISCOVERY_PROVIDER`, `PREDICTION_PROVIDER`, `SYNTHESIS_PROVIDER`.

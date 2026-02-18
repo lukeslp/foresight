@@ -324,7 +324,11 @@ class PredictionWorker:
             for stage_name, providers in provider_groups:
                 for provider_name in providers:
                     logger.info(f'[{symbol}] [{stage_name}] Requesting analysis from {provider_name}')
-                    report = self.prediction_service.generate_prediction(symbol, stock_data, provider_name=provider_name)
+                    report = self.prediction_service.generate_prediction_swarm(
+                        symbol,
+                        stock_data,
+                        provider_name=provider_name
+                    )
                     if not report:
                         continue
 
@@ -379,9 +383,27 @@ class PredictionWorker:
                     reasoning=council_reasoning
                 )
 
-                # Optional head-of-research synthesis
-                consensus = self.prediction_service.debate_and_vote(symbol, stock_data, analyst_reports)
+                # Final-stage democratic synthesis (no single lead model)
+                consensus = self.prediction_service.synthesize_council_swarm(
+                    symbol,
+                    stock_data,
+                    analyst_reports,
+                    provider_weights=weights
+                )
                 if consensus:
+                    # Persist each synthesis vote for transparency
+                    for report in consensus.get('reports', []):
+                        db.add_prediction(
+                            cycle_id=cycle_id,
+                            stock_id=stock_id,
+                            provider=f"{report['provider']}-synthesis",
+                            predicted_direction=report['prediction'],
+                            confidence=report['confidence'],
+                            initial_price=current_price,
+                            target_time=target_time,
+                            reasoning=f"[{report.get('stage','n/a')}] {report.get('reasoning','')}"
+                        )
+
                     db.add_prediction(
                         cycle_id=cycle_id,
                         stock_id=stock_id,
@@ -397,7 +419,7 @@ class PredictionWorker:
                     )
                     logger.info(
                         f'Consensus reached for {symbol}: {consensus["prediction"]} '
-                        f'(confidence: {consensus["confidence"]}) via {consensus["model"]}; '
+                        f'(confidence: {consensus["confidence"]}) via {consensus["provider"]}; '
                         f'council winner={winning_direction} ({council_confidence:.2f})'
                     )
             else:

@@ -35,7 +35,8 @@ class Config:
     MODEL_OVERRIDES = {
         provider: model for provider, model in {
             'xai': os.environ.get('MODEL_OVERRIDE_XAI'),
-            'anthropic': os.environ.get('MODEL_OVERRIDE_ANTHROPIC'),
+            # Anthropic Sonnet 3.5 is deprecated; default to Sonnet 4 unless explicitly overridden.
+            'anthropic': os.environ.get('MODEL_OVERRIDE_ANTHROPIC', 'claude-sonnet-4-20250514'),
             'gemini': os.environ.get('MODEL_OVERRIDE_GEMINI'),
             'cohere': os.environ.get('MODEL_OVERRIDE_COHERE'),
             'mistral': os.environ.get('MODEL_OVERRIDE_MISTRAL'),
@@ -44,6 +45,9 @@ class Config:
             'manus': os.environ.get('MODEL_OVERRIDE_MANUS'),
         }.items() if model
     }
+
+    # Swarm-style democracy settings
+    SWARM_SUBAGENTS_PER_PROVIDER = int(os.environ.get('SWARM_SUBAGENTS_PER_PROVIDER', 2))
 
     # API Keys (loaded from environment)
     XAI_API_KEY = os.environ.get('XAI_API_KEY')

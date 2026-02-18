@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 [![Live](https://img.shields.io/badge/live-dr.eamer.dev%2Fforesight-amber?style=flat-square)](https://dr.eamer.dev/foresight/)
 
-A stock prediction terminal that runs a structured multi-model debate on a configurable cycle. Four language models argue about each stock. Gemini moderates. Accuracy is measured against actual closing prices and tracked indefinitely.
+A stock prediction terminal that runs a staged multi-provider swarm debate on a configurable cycle. Providers debate at discovery, analysis, council voting, and synthesis. Accuracy is measured against actual closing prices and tracked indefinitely.
 
 **Live:** https://dr.eamer.dev/foresight/
 
@@ -14,8 +14,9 @@ A stock prediction terminal that runs a structured multi-model debate on a confi
 
 ## Features
 
-- **Four-analyst debate** — Grok, Claude, Mistral, and Perplexity each produce independent directional predictions (UP / DOWN / NEUTRAL) with confidence scores and written reasoning
-- **Consensus synthesis** — Gemini acts as Head of Research, reads all four reports, moderates the disagreements, and issues a final verdict
+- **Democratic provider swarm** — providers participate in `core` (xAI, Gemini), `join` (Anthropic, OpenAI, Perplexity), and `side` (Mistral, Cohere) stages
+- **Sub-agent analysis** — each provider can run internal specialist sub-agents, then emit a provider-level vote with reasoning
+- **Council + synthesis voting** — weighted democratic votes happen twice: analyst council vote and final synthesis vote across all providers
 - **Continuous cycles** — a background daemon thread runs prediction cycles on a configurable interval; each cycle discovers stocks, fetches live prices via yfinance, and logs everything to SQLite
 - **Accuracy tracking** — predictions are evaluated against actual closing prices after the 7-day target window; per-provider accuracy stats accumulate over time
 - **Real-time dashboard** — D3.js v7 visualizations stream live events over SSE; no page refresh needed to watch a cycle run
@@ -69,16 +70,16 @@ All settings are environment variables with sensible defaults.
 | `CYCLE_INTERVAL` | `30` | Seconds between cycles (use `600` in production) |
 | `MAX_STOCKS` | `10` | Stocks to discover per cycle |
 | `LOOKBACK_DAYS` | `30` | Historical price window sent to each analyst |
-| `DISCOVERY_PROVIDER` | `mistral` | Model used for stock discovery |
-| `PREDICTION_PROVIDER` | `anthropic` | Model used for primary technical analysis |
-| `SYNTHESIS_PROVIDER` | `gemini` | Model used for debate moderation |
+| `DISCOVERY_PROVIDER` | `mistral` | Preferred default provider for non-swarm discovery fallback |
+| `PREDICTION_PROVIDER` | `anthropic` | Preferred default provider for non-swarm prediction fallback |
+| `SYNTHESIS_PROVIDER` | `gemini` | Preferred default provider for non-swarm confidence synthesis fallback |
 
 Model overrides (set in `app/config.py`):
 
 | Provider | Default model |
 |----------|--------------|
 | xai | `grok-2-1212` |
-| anthropic | `claude-3-5-sonnet-20241022` |
+| anthropic | `claude-sonnet-4-20250514` |
 | gemini | `gemini-2.0-flash` |
 | mistral | `mistral-large-latest` |
 | perplexity | `sonar` |
@@ -87,11 +88,11 @@ Model overrides (set in `app/config.py`):
 
 ## Prediction Cycle
 
-Each cycle runs through four phases in sequence.
+Each cycle runs through four democratic phases in sequence.
 
 ### Phase 1 — Discovery
 
-Grok receives a prompt asking for `MAX_STOCKS` publicly traded tickers worth watching over the next 1–7 days, with criteria around recent news, volatility, and clear trading signals. It returns a JSON array of ticker symbols.
+Providers vote on discovery candidates by stage (`core`, `join`, `side`), and each provider can run internal discovery sub-agents. The system combines results into a weighted symbol shortlist.
 
 ### Phase 2 — Validation
 
@@ -99,22 +100,21 @@ Each symbol is validated via yfinance. Symbols that cannot be fetched, return no
 
 ### Phase 3 — Multi-Model Debate
 
-For each surviving symbol, four analysts are called independently:
+For each surviving symbol, providers are called by stage:
 
-| Analyst | Model | Role |
-|---------|-------|------|
-| Primary | Claude (`claude-3-5-sonnet-20241022`) | Technical analysis, primary direction |
-| Alternative | Grok (`grok-2-1212`) | Contrarian or confirming perspective |
-| European | Mistral (`mistral-large-latest`) | Independent technical read |
-| Search-augmented | Perplexity (`sonar`) | News and context-aware analysis |
+| Stage | Providers | Role |
+|------|-----------|------|
+| Core | xAI, Gemini | fast low-cost first-pass analysis |
+| Join | Anthropic, OpenAI, Perplexity | deep reasoning and grounded context |
+| Side | Mistral, Cohere | additional diversity and dissent |
 
 Each analyst receives the ticker symbol, current price, and the last 10 closing prices. Each returns a JSON object with `prediction` (UP/DOWN/NEUTRAL), `confidence` (0.0–1.0), and `reasoning`.
 
 All four reports are stored individually in the `predictions` table.
 
-### Phase 4 — Consensus
+### Phase 4 — Democratic Synthesis
 
-Gemini receives all four analyst reports and acts as Head of Research. It moderates the debate, evaluates which reasoning is most technically grounded, and issues a final consensus verdict — stored as `{provider}-consensus` in the `predictions` table.
+All providers cast final synthesis votes using the full debate transcript. Those votes are weighted and persisted as `*-synthesis`, then aggregated into `council-swarm-consensus`.
 
 The cycle is then marked `completed` and a `cycle_complete` SSE event is broadcast to all connected clients.
 
@@ -159,7 +159,7 @@ Six tables managed by `ForesightDB` in `db.py`:
 | `cycles` | One row per prediction cycle; status: `active`, `completed`, `failed` |
 | `stocks` | Global ticker registry, deduplicated (`UNIQUE COLLATE NOCASE`) |
 | `prices` | Price snapshots per stock per cycle, used for accuracy evaluation |
-| `predictions` | Per-provider directional predictions; consensus stored as `{provider}-consensus` |
+| `predictions` | Per-provider directional predictions, per-provider synthesis votes (`*-synthesis`), and final consensus rows (`*-consensus`) |
 | `accuracy_stats` | Aggregate win/loss counts and accuracy ratios per provider |
 | `events` | SSE event queue; populated automatically by DB write methods |
 

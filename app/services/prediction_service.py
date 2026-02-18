@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 class PredictionService:
     """Service for generating stock predictions using language models"""
+    DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-20250514'
+    DEPRECATED_ANTHROPIC_MODELS = {
+        'claude-3-5-sonnet-20241022',
+        'claude-3-5-sonnet-latest',
+        'claude-3-5-sonnet-20240620',
+    }
 
     def __init__(self, config):
         """
@@ -35,14 +41,11 @@ class PredictionService:
 
     def _init_providers(self):
         """Initialize LLM providers from config"""
-        overrides = self.config.get('MODEL_OVERRIDES', {})
         for role, provider_name in self.config['PROVIDERS'].items():
             try:
-                # Use model override if specified for this provider
-                model = overrides.get(provider_name)
-                
                 # We need to use ProviderFactory to get the provider
                 provider = ProviderFactory.get_provider(provider_name)
+                model = self._resolve_model(provider_name, provider)
                 
                 # Manually override the model if specified
                 if model:
@@ -57,6 +60,20 @@ class PredictionService:
             except Exception as e:
                 logger.error(f'Failed to initialize {provider_name} for {role}: {str(e)}')
                 self._mark_provider_failure(provider_name, e)
+
+    def _resolve_model(self, provider_name: str, provider_obj=None) -> Optional[str]:
+        """
+        Resolve effective model for provider with defensive upgrade rules.
+        """
+        configured = self.config.get('MODEL_OVERRIDES', {}).get(provider_name)
+        current = getattr(provider_obj, 'model', None) if provider_obj else None
+        model = configured or current
+
+        # Force-upgrade deprecated Anthropic defaults even if inherited upstream.
+        if provider_name == 'anthropic':
+            if not model or model in self.DEPRECATED_ANTHROPIC_MODELS:
+                return self.DEFAULT_ANTHROPIC_MODEL
+        return model
 
     def _complete_with_optional_model(self, provider, messages, model=None):
         """
@@ -185,23 +202,52 @@ class PredictionService:
             weights[provider] = round(base * factor, 4)
         return weights
 
-    def debate_and_vote(self, symbol: str, stock_data: Dict, analyst_predictions: list) -> Optional[Dict]:
+    def _provider_stage(self, provider_name: str) -> str:
+        if provider_name in ('xai', 'gemini'):
+            return 'core'
+        if provider_name in ('anthropic', 'openai', 'perplexity'):
+            return 'join'
+        return 'side'
+
+    def synthesize_council_swarm(
+        self,
+        symbol: str,
+        stock_data: Dict,
+        analyst_predictions: list,
+        provider_weights: Dict[str, float]
+    ) -> Optional[Dict]:
         """
-        Have a lead agent synthesize multiple predictions into a final consensus
+        Final-stage synthesis as a provider democracy (no single lead model).
         """
-        # Try multiple potential synthesis providers in order of preference
-        synthesis_providers = ['gemini', 'xai', 'mistral']
-        
-        # Format predictions for the prompt
+        if not analyst_predictions:
+            return None
+
+        stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
         debate_context = ""
         for i, pred in enumerate(analyst_predictions):
-            debate_context += f"Analyst {i+1} ({pred['provider']}):\n"
+            debate_context += f"Analyst {i+1} ({pred['provider']} / {pred.get('stage', 'n/a')}):\n"
             debate_context += f"Direction: {pred['prediction']}\n"
             debate_context += f"Confidence: {pred['confidence']}\n"
             debate_context += f"Reasoning: {pred['reasoning']}\n\n"
 
-        prompt = f"""You are the Head of Research at a top-tier hedge fund. 
-Your analysts have provided conflicting technical reports on {symbol}.
+        reports = []
+        from llm_providers import Message
+        for provider_name in stage_order:
+            try:
+                provider = None
+                for role, p in self.providers.items():
+                    if self.config['PROVIDERS'].get(role) == provider_name:
+                        provider = p
+                        break
+                if not provider:
+                    provider = ProviderFactory.get_provider(provider_name)
+
+                model = self._resolve_model(provider_name, provider)
+                if model:
+                    provider.model = model
+
+                prompt = f"""You are one voting member of a hedge fund research council.
+Debate and vote on the best 1-7 day direction for {symbol}.
 
 Symbol: {symbol}
 Current Price: ${stock_data.get('current_price', 'N/A')}
@@ -209,65 +255,63 @@ Current Price: ${stock_data.get('current_price', 'N/A')}
 Analyst Reports:
 {debate_context}
 
-Your task is to:
-1. Moderate the debate between these perspectives.
-2. Evaluate which reasoning is most grounded in the technical data.
-3. Provide a final 'Hedge Fund Consensus' vote.
-
-Return your final decision as JSON:
+Return JSON only:
 {{
-    "consensus_direction": "UP|DOWN|NEUTRAL",
-    "consensus_confidence": 0.82,
-    "synthesis_reasoning": "A brief summary of the debate and why this conclusion was reached."
+  "prediction": "UP|DOWN|NEUTRAL",
+  "confidence": 0.0,
+  "reasoning": "Concise explanation of your vote based on the debate."
 }}"""
-
-        for p_name in synthesis_providers:
-            try:
-                # Get the provider instance (either from our initialized ones or factory)
-                provider = None
-                for role, p in self.providers.items():
-                    if self.config['PROVIDERS'].get(role) == p_name:
-                        provider = p
-                        break
-                
-                if not provider:
-                    provider = ProviderFactory.get_provider(p_name)
-                
-                model = self.config.get('MODEL_OVERRIDES', {}).get(p_name)
-                
-                from llm_providers import Message
                 response = self._complete_with_optional_model(
                     provider,
                     messages=[Message(role='user', content=prompt)],
                     model=model
                 )
-
-                import json
-                import re
-                
-                # Clean response
-                content = response.content.strip()
-                if content.startswith('```'):
-                    content = re.sub(r'^```json\s*|\s*```$', '', content, flags=re.MULTILINE)
-                
-                result = json.loads(content)
-                self._mark_provider_success(p_name)
-
-                return {
-                    'provider': p_name,
-                    'model': getattr(provider, 'model', 'unknown'),
-                    'prediction': str(result.get('consensus_direction', 'NEUTRAL')).lower(),
-                    'confidence': result.get('consensus_confidence', 0.5),
-                    'reasoning': result.get('synthesis_reasoning', 'No synthesis reasoning provided')
-                }
-
+                parsed = self._parse_prediction_json(response.content)
+                if not parsed:
+                    continue
+                parsed.update({
+                    'provider': provider_name,
+                    'stage': self._provider_stage(provider_name),
+                    'model': model or getattr(provider, 'model', 'unknown'),
+                })
+                reports.append(parsed)
+                self._mark_provider_success(provider_name)
             except Exception as e:
-                logger.warning(f'Synthesis failed with {p_name}: {e}')
-                self._mark_provider_failure(p_name, e)
-                continue
-        
-        logger.error(f'All synthesis providers failed for {symbol}')
-        return None
+                logger.warning(f'Final synthesis failed with {provider_name}: {e}')
+                self._mark_provider_failure(provider_name, e)
+
+        if not reports:
+            return None
+
+        vote_totals = {'up': 0.0, 'down': 0.0, 'neutral': 0.0}
+        lines = []
+        for report in reports:
+            direction = report['prediction'] if report['prediction'] in vote_totals else 'neutral'
+            confidence = float(report.get('confidence') or 0.5)
+            weight = float(provider_weights.get(report['provider'], 1.0))
+            score = max(0.05, confidence) * weight
+            vote_totals[direction] += score
+            lines.append(
+                f"{report['provider']} [{report['stage']}]: dir={direction} conf={confidence:.2f} weight={weight:.2f} score={score:.2f}; reason={report.get('reasoning','')}"
+            )
+
+        winning_direction = max(vote_totals.items(), key=lambda x: x[1])[0]
+        total_score = sum(vote_totals.values()) or 1.0
+        confidence = vote_totals[winning_direction] / total_score
+        reasoning = (
+            f"Democratic synthesis vote totals: up={vote_totals['up']:.2f}, down={vote_totals['down']:.2f}, neutral={vote_totals['neutral']:.2f}. "
+            f"Winner={winning_direction}. Individual synthesis votes: " + " | ".join(lines)
+        )
+
+        return {
+            'provider': 'council-swarm',
+            'model': 'multi-provider',
+            'prediction': winning_direction,
+            'confidence': confidence,
+            'reasoning': reasoning,
+            'reports': reports,
+            'vote_totals': vote_totals,
+        }
 
     def discover_stocks(self, count: int = 10) -> list:
         """
@@ -309,7 +353,9 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
                 if not provider:
                     provider = ProviderFactory.get_provider(provider_name)
 
-                model = self.config.get('MODEL_OVERRIDES', {}).get(provider_name)
+                model = self._resolve_model(provider_name, provider)
+                if model:
+                    provider.model = model
                 logger.debug(f'Using {provider_name} ({model or "default"}) for stock discovery')
                 response = self._complete_with_optional_model(
                     provider,
@@ -351,7 +397,7 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
 
         for provider_name in stage_order:
             try:
-                symbols = self._discover_symbols_from_provider(provider_name, count)
+                symbols = self._discover_symbols_from_provider_swarm(provider_name, count)
                 if not symbols:
                     continue
                 weight = provider_weights.get(provider_name, self.base_provider_weights().get(provider_name, 1.0))
@@ -369,6 +415,54 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
             logger.info(f'Discovery debate selected: {symbols} | provenance: {provenance}')
         return symbols
 
+    def _discover_symbols_from_provider_swarm(self, provider_name: str, count: int) -> List[str]:
+        """
+        Provider-internal discovery swarm: multiple cheap roles vote on tickers.
+        """
+        provider = None
+        for role, p in self.providers.items():
+            if self.config['PROVIDERS'].get(role) == provider_name:
+                provider = p
+                break
+        if not provider:
+            provider = ProviderFactory.get_provider(provider_name)
+
+        model = self._resolve_model(provider_name, provider)
+        if model:
+            provider.model = model
+
+        n = max(1, int(self.config.get('SWARM_SUBAGENTS_PER_PROVIDER', 2)))
+        personas = ['momentum scanner', 'news catalyst scout', 'volatility hunter', 'contrarian screener'][:n]
+        symbol_votes: Dict[str, float] = {}
+
+        from llm_providers import Message
+        for persona in personas:
+            prompt = f"""You are a {persona} for short-term equity ideas.
+List {count} US ticker symbols for likely movement in the next 1-7 days.
+
+Return ONLY a JSON array of ticker symbols.
+Example: ["AAPL", "MSFT", "TSLA"]"""
+            try:
+                response = self._complete_with_optional_model(
+                    provider,
+                    messages=[Message(role='user', content=prompt)],
+                    model=model
+                )
+                symbols = self._parse_discovery_symbols(response.content, count)
+                for rank, symbol in enumerate(symbols):
+                    symbol_votes[symbol] = symbol_votes.get(symbol, 0.0) + max(0.1, 1.0 - (rank * 0.1))
+            except Exception as e:
+                logger.warning(f'Discovery subagent {persona} failed for {provider_name}: {e}')
+
+        if not symbol_votes:
+            self._mark_provider_failure(provider_name, ValueError('No discovery swarm symbols'))
+            return []
+
+        ranked = sorted(symbol_votes.items(), key=lambda x: x[1], reverse=True)
+        symbols = [symbol for symbol, _ in ranked[:count]]
+        self._mark_provider_success(provider_name)
+        return symbols
+
     def _discover_symbols_from_provider(self, provider_name: str, count: int) -> List[str]:
         """Run discovery prompt with a specific provider."""
         provider = None
@@ -379,7 +473,9 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
         if not provider:
             provider = ProviderFactory.get_provider(provider_name)
 
-        model = self.config.get('MODEL_OVERRIDES', {}).get(provider_name)
+        model = self._resolve_model(provider_name, provider)
+        if model:
+            provider.model = model
         prompt = f"""You are a stock market analyst. Identify {count} publicly traded stocks
 that are currently interesting for short-term trading (next 1-7 days).
 
@@ -489,7 +585,7 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
                 if not target_provider:
                     target_provider = ProviderFactory.get_provider(p_name)
                 
-                model = self.config.get('MODEL_OVERRIDES', {}).get(p_name)
+                model = self._resolve_model(p_name, target_provider)
                 if model:
                     target_provider.model = model
 
@@ -543,6 +639,114 @@ Return your response as JSON:
         logger.error(f'All prediction providers failed for {symbol}')
         return None
 
+    def generate_prediction_swarm(
+        self,
+        symbol: str,
+        stock_data: Dict,
+        provider_name: str,
+        subagents: Optional[List[str]] = None
+    ) -> Optional[Dict]:
+        """
+        Run provider-internal sub-agent debate and aggregate provider output.
+        """
+        if not provider_name:
+            return None
+
+        if not subagents:
+            n = max(1, int(self.config.get('SWARM_SUBAGENTS_PER_PROVIDER', 2)))
+            default_subagents = ['momentum', 'risk', 'news', 'contrarian']
+            subagents = default_subagents[:n]
+
+        provider = None
+        for role, p in self.providers.items():
+            if self.config['PROVIDERS'].get(role) == provider_name:
+                provider = p
+                break
+        if not provider:
+            provider = ProviderFactory.get_provider(provider_name)
+
+        model = self._resolve_model(provider_name, provider)
+        if model:
+            provider.model = model
+        reports = []
+
+        from llm_providers import Message
+        for agent in subagents:
+            prompt = f"""You are a specialized equity analyst agent with the role: {agent}.
+Analyze this stock and make a short-term prediction (1-7 days):
+
+Symbol: {symbol}
+Current Price: ${stock_data.get('current_price', 'N/A')}
+Recent Price Data: {stock_data.get('close', [])[-10:]}
+
+Return JSON only:
+{{
+  "prediction": "UP|DOWN|NEUTRAL",
+  "confidence": 0.0,
+  "reasoning": "2-3 concise sentences from the {agent} perspective"
+}}"""
+            try:
+                response = self._complete_with_optional_model(
+                    provider,
+                    messages=[Message(role='user', content=prompt)],
+                    model=model
+                )
+                parsed = self._parse_prediction_json(response.content)
+                if not parsed:
+                    continue
+                parsed['subagent'] = agent
+                reports.append(parsed)
+            except Exception as e:
+                logger.warning(f'Subagent {agent} failed with {provider_name} for {symbol}: {e}')
+
+        if not reports:
+            self._mark_provider_failure(provider_name, ValueError('No sub-agent reports generated'))
+            return None
+
+        vote = {'up': 0.0, 'down': 0.0, 'neutral': 0.0}
+        for r in reports:
+            pred = r.get('prediction', 'neutral')
+            conf = float(r.get('confidence') or 0.5)
+            vote[pred] = vote.get(pred, 0.0) + max(0.05, conf)
+
+        winner = max(vote.items(), key=lambda x: x[1])[0]
+        confidence = vote[winner] / (sum(vote.values()) or 1.0)
+        reasoning = " || ".join([f"{r['subagent']}: {r.get('reasoning', '')}" for r in reports])
+        self._mark_provider_success(provider_name)
+
+        return {
+            'provider': provider_name,
+            'model': model or getattr(provider, 'model', 'unknown'),
+            'prediction': winner,
+            'confidence': confidence,
+            'reasoning': reasoning,
+            'subagents': reports
+        }
+
+    def _parse_prediction_json(self, content: str) -> Optional[Dict]:
+        """Parse prediction JSON from provider response."""
+        if not content:
+            return None
+        text = content.strip()
+        text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\s*```$', '', text)
+        try:
+            data = json.loads(text)
+            if not isinstance(data, dict):
+                return None
+            prediction = str(data.get('prediction', 'NEUTRAL')).strip().lower()
+            if prediction not in ('up', 'down', 'neutral'):
+                prediction = 'neutral'
+            confidence = float(data.get('confidence', 0.5))
+            confidence = max(0.0, min(1.0, confidence))
+            return {
+                'prediction': prediction,
+                'confidence': confidence,
+                'reasoning': str(data.get('reasoning', 'No reasoning provided')).strip()
+            }
+        except Exception:
+            return None
+
     def synthesize_confidence(self, predictions: list) -> Optional[float]:
         """
         Use LLM to synthesize confidence from multiple predictions
@@ -560,7 +764,9 @@ Return your response as JSON:
         try:
             provider = self.providers['synthesis']
             provider_name = self.config['PROVIDERS']['synthesis']
-            model = self.config.get('MODEL_OVERRIDES', {}).get(provider_name)
+            model = self._resolve_model(provider_name, provider)
+            if model:
+                provider.model = model
 
             prompt = f"""You are analyzing multiple stock predictions.
 Synthesize these predictions into a single confidence score (0.0 to 1.0).
