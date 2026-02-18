@@ -181,6 +181,7 @@ class PredictionService:
             'gemini': 1.0,      # cheap synthesis/search
             'anthropic': 1.2,   # strong reasoning
             'openai': 1.2,      # strong reasoning
+            'perplexity': 1.1,  # web-grounded, valuable for stock news
             'mistral': 0.8,     # side input
             'cohere': 0.6,      # low default weight
         }
@@ -204,7 +205,7 @@ class PredictionService:
     def _provider_stage(self, provider_name: str) -> str:
         if provider_name in ('xai', 'gemini'):
             return 'core'
-        if provider_name in ('anthropic', 'openai'):
+        if provider_name in ('anthropic', 'openai', 'perplexity'):
             return 'join'
         return 'side'
 
@@ -221,7 +222,7 @@ class PredictionService:
         if not analyst_predictions:
             return None
 
-        stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'mistral', 'cohere']
+        stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
         debate_context = ""
         for i, pred in enumerate(analyst_predictions):
             debate_context += f"Analyst {i+1} ({pred['provider']} / {pred.get('stage', 'n/a')}):\n"
@@ -390,7 +391,7 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
         3) Mistral + Cohere (side input)
         Returns weighted-vote top symbols.
         """
-        stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'mistral', 'cohere']
+        stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
         votes: Dict[str, float] = {}
         provenance: Dict[str, List[str]] = {}
 

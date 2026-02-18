@@ -317,7 +317,7 @@ class PredictionWorker:
             target_time = datetime.now() + timedelta(days=7)
             provider_groups = [
                 ('core', ['xai', 'gemini']),
-                ('join', ['anthropic', 'openai']),
+                ('join', ['anthropic', 'openai', 'perplexity']),
                 ('side', ['mistral', 'cohere']),
             ]
 
