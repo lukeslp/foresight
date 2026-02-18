@@ -214,7 +214,8 @@ class PredictionService:
         symbol: str,
         stock_data: Dict,
         analyst_predictions: list,
-        provider_weights: Dict[str, float]
+        provider_weights: Dict[str, float],
+        stage_order: Optional[List[str]] = None
     ) -> Optional[Dict]:
         """
         Final-stage synthesis as a provider democracy (no single lead model).
@@ -222,7 +223,8 @@ class PredictionService:
         if not analyst_predictions:
             return None
 
-        stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
+        if not stage_order:
+            stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
         debate_context = ""
         for i, pred in enumerate(analyst_predictions):
             debate_context += f"Analyst {i+1} ({pred['provider']} / {pred.get('stage', 'n/a')}):\n"
@@ -383,7 +385,12 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
             logger.error(f'Error discovering stocks: {last_error}')
         return []
 
-    def discover_stocks_debate(self, count: int, provider_weights: Dict[str, float]) -> List[str]:
+    def discover_stocks_debate(
+        self,
+        count: int,
+        provider_weights: Dict[str, float],
+        stage_order: Optional[List[str]] = None
+    ) -> List[str]:
         """
         Multi-provider discovery debate:
         1) xAI + Gemini (cheap, fast)
@@ -391,7 +398,8 @@ Example: ["AAPL", "MSFT", "TSLA"]"""
         3) Mistral + Cohere (side input)
         Returns weighted-vote top symbols.
         """
-        stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
+        if not stage_order:
+            stage_order = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
         votes: Dict[str, float] = {}
         provenance: Dict[str, List[str]] = {}
 

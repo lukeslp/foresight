@@ -17,7 +17,7 @@ A stock prediction terminal that runs a staged multi-provider swarm debate on a 
 - **Democratic provider swarm** — providers participate in `core` (xAI, Gemini), `join` (Anthropic, OpenAI, Perplexity), and `side` (Mistral, Cohere) stages
 - **Sub-agent analysis** — each provider can run internal specialist sub-agents, then emit a provider-level vote with reasoning
 - **Council + synthesis voting** — weighted democratic votes happen twice: analyst council vote and final synthesis vote across all providers
-- **Continuous cycles** — a background daemon thread runs prediction cycles on a configurable interval; each cycle discovers stocks, fetches live prices via yfinance, and logs everything to SQLite
+- **Continuous cycles** — a background daemon thread runs prediction cycles on a configurable interval; each cycle discovers equities, optionally adds configured crypto symbols, fetches live prices via yfinance, and logs everything to SQLite
 - **Accuracy tracking** — predictions are evaluated against actual closing prices after the 7-day target window; per-provider accuracy stats accumulate over time
 - **Real-time dashboard** — D3.js v7 visualizations stream live events over SSE; no page refresh needed to watch a cycle run
 - **Oracle Terminal aesthetic** — Cinzel display font, JetBrains Mono for data, amber accent on near-black
@@ -75,9 +75,15 @@ All settings are environment variables with sensible defaults.
 | `OVERNIGHT_CHECK_TIMES` | `20:00,06:00` | Two overnight refresh runs before next open |
 | `OVERNIGHT_LOOKAHEAD_HOURS` | `18` | Only run overnight checks when next open is close enough |
 | `SCHEDULE_POLL_SECONDS` | `20` | Worker polling granularity for scheduled runs |
+| `OVERNIGHT_LIGHT_MODE` | `true` | Use cheaper/light provider set for overnight runs |
+| `OVERNIGHT_FULL_DEBATE_EVERY` | `3` | Force one full all-provider overnight run every N overnight cycles |
+| `OVERNIGHT_LIGHT_PROVIDER_ORDER` | `xai,perplexity,mistral` | Provider order for light overnight cycles |
 | `CYCLE_INTERVAL` | `1800` | Legacy compatibility var; used as fallback for market-open cadence |
 | `MAX_STOCKS` | `10` | Stocks to discover per cycle |
 | `LOOKBACK_DAYS` | `30` | Historical price window sent to each analyst |
+| `INCLUDE_CRYPTO` | `true` | Include configured crypto symbols in each cycle |
+| `MAX_CRYPTO_SYMBOLS` | `3` | Cap on configured crypto symbols per cycle |
+| `CRYPTO_SYMBOLS` | `BTC-USD,ETH-USD,SOL-USD` | Comma-separated crypto tickers (yfinance format) |
 | `DISCOVERY_PROVIDER` | `mistral` | Preferred default provider for non-swarm discovery fallback |
 | `PREDICTION_PROVIDER` | `anthropic` | Preferred default provider for non-swarm prediction fallback |
 | `SYNTHESIS_PROVIDER` | `gemini` | Preferred default provider for non-swarm confidence synthesis fallback |
@@ -98,6 +104,7 @@ Model overrides (set in `app/config.py`):
 
 - During market hours (default `09:30-16:00` ET), the worker runs a new cycle every 30 minutes.
 - During closed hours, the worker runs two low-frequency refresh cycles (`20:00` and `06:00` ET by default) to refresh news/catalyst context before the next open.
+- Overnight runs use a lighter provider order by default, with periodic full-debate refresh cycles so top agents are still used regularly.
 - Weekend behavior follows the same logic and naturally schedules pre-open refreshes for Monday (for example, Sunday evening + Monday early morning).
 - NYSE holiday and early-close session logic is applied to scheduling (for example, New Year holiday closure and Black Friday early close).
 - If `pandas_market_calendars` is available, it is used for exchange-exact session windows; otherwise built-in NYSE rules are used.
@@ -110,7 +117,7 @@ Each cycle runs through four democratic phases in sequence.
 
 ### Phase 1 — Discovery
 
-Providers vote on discovery candidates by stage (`core`, `join`, `side`), and each provider can run internal discovery sub-agents. The system combines results into a weighted symbol shortlist.
+Providers vote on discovery candidates by stage (`core`, `join`, `side`), and each provider can run internal discovery sub-agents. The system combines results into a weighted symbol shortlist, then appends configured crypto symbols (if enabled).
 
 ### Phase 2 — Validation
 
@@ -128,7 +135,7 @@ For each surviving symbol, providers are called by stage:
 
 Each analyst receives the ticker symbol, current price, and the last 10 closing prices. Each returns a JSON object with `prediction` (UP/DOWN/NEUTRAL), `confidence` (0.0–1.0), and `reasoning`.
 
-All four reports are stored individually in the `predictions` table.
+All analyst reports that run in that cycle are stored individually in the `predictions` table.
 
 ### Phase 4 — Democratic Synthesis
 

@@ -265,8 +265,14 @@ def worker_status():
             'market_open_interval_seconds': current_app.config['MARKET_OPEN_INTERVAL_SECONDS'],
             'overnight_check_times': current_app.config['OVERNIGHT_CHECK_TIMES'],
             'overnight_lookahead_hours': current_app.config['OVERNIGHT_LOOKAHEAD_HOURS'],
+            'overnight_light_mode': current_app.config['OVERNIGHT_LIGHT_MODE'],
+            'overnight_full_debate_every': current_app.config['OVERNIGHT_FULL_DEBATE_EVERY'],
+            'overnight_light_provider_order': current_app.config['OVERNIGHT_LIGHT_PROVIDER_ORDER'],
             'max_stocks': current_app.config['MAX_STOCKS'],
-            'lookback_days': current_app.config['LOOKBACK_DAYS']
+            'lookback_days': current_app.config['LOOKBACK_DAYS'],
+            'include_crypto': current_app.config['INCLUDE_CRYPTO'],
+            'max_crypto_symbols': current_app.config['MAX_CRYPTO_SYMBOLS'],
+            'crypto_symbols': current_app.config['CRYPTO_SYMBOLS'],
         }
     })
 
@@ -300,7 +306,7 @@ def start_cycle():
             try:
                 # Manual runs should work even if this request hits a Gunicorn
                 # process that does not host the scheduler thread.
-                worker._run_prediction_cycle(cycle_id=cycle_id)
+                worker._run_prediction_cycle(cycle_id=cycle_id, run_reason='manual')
                 app.logger.info(f'Manual cycle {cycle_id} triggered via /api/cycle/start')
             except Exception as e:
                 app.logger.error(f'Manual cycle error: {e}', exc_info=True)

@@ -17,6 +17,16 @@ logger = logging.getLogger(__name__)
 
 class PredictionWorker:
     """Background worker that executes prediction cycles on a schedule"""
+    FULL_PROVIDER_ORDER = ['xai', 'gemini', 'anthropic', 'openai', 'perplexity', 'mistral', 'cohere']
+    PROVIDER_STAGE = {
+        'xai': 'core',
+        'gemini': 'core',
+        'anthropic': 'join',
+        'openai': 'join',
+        'perplexity': 'join',
+        'mistral': 'side',
+        'cohere': 'side',
+    }
 
     def __init__(self, config: Dict):
         """
@@ -54,6 +64,24 @@ class PredictionWorker:
         self.overnight_check_times = self._parse_overnight_check_times(
             config.get('OVERNIGHT_CHECK_TIMES', '20:00,06:00')
         )
+        overnight_light_raw = config.get('OVERNIGHT_LIGHT_MODE', True)
+        if isinstance(overnight_light_raw, str):
+            self.overnight_light_mode = overnight_light_raw.lower() not in ('0', 'false', 'no')
+        else:
+            self.overnight_light_mode = bool(overnight_light_raw)
+        self.overnight_full_debate_every = max(1, int(config.get('OVERNIGHT_FULL_DEBATE_EVERY', 3)))
+        self.overnight_light_provider_order = self._parse_provider_order(
+            config.get('OVERNIGHT_LIGHT_PROVIDER_ORDER', 'xai,perplexity,mistral')
+        )
+        include_crypto_raw = config.get('INCLUDE_CRYPTO', True)
+        if isinstance(include_crypto_raw, str):
+            self.include_crypto = include_crypto_raw.lower() not in ('0', 'false', 'no')
+        else:
+            self.include_crypto = bool(include_crypto_raw)
+        self.max_crypto_symbols = max(0, int(config.get('MAX_CRYPTO_SYMBOLS', 3)))
+        self.crypto_symbols = self._parse_symbol_list(config.get('CRYPTO_SYMBOLS', 'BTC-USD,ETH-USD,SOL-USD'))
+        self.crypto_symbol_set = set(self.crypto_symbols)
+        self._overnight_cycles_since_full = 0
         self._nyse_holiday_cache: Dict[int, Set[date_cls]] = {}
         self._nyse_session_cache: Dict[date_cls, Optional[Tuple[datetime, datetime]]] = {}
         self._nyse_calendar = None
@@ -118,7 +146,7 @@ class PredictionWorker:
                         f'Scheduled cycle due at {self.next_scheduled_run.isoformat()} '
                         f'({self.next_scheduled_reason}); executing now'
                     )
-                    self._run_prediction_cycle()
+                    self._run_prediction_cycle(run_reason=self.next_scheduled_reason)
                     self.next_scheduled_run, self.next_scheduled_reason = self._next_scheduled_run(
                         after_dt=self._et_now()
                     )
@@ -173,6 +201,63 @@ class PredictionWorker:
             parsed = [(20, 0), (6, 0)]
         parsed = sorted(set(parsed), key=lambda hm: (hm[0], hm[1]))
         return parsed
+
+    def _parse_symbol_list(self, raw: str) -> List[str]:
+        """Parse comma-separated symbol list preserving order."""
+        symbols: List[str] = []
+        seen = set()
+        for token in (raw or '').split(','):
+            symbol = token.strip().upper()
+            if not symbol or symbol in seen:
+                continue
+            symbols.append(symbol)
+            seen.add(symbol)
+        return symbols
+
+    def _parse_provider_order(self, raw: str) -> List[str]:
+        """Parse provider order and keep only known providers."""
+        order: List[str] = []
+        seen = set()
+        for token in (raw or '').split(','):
+            provider = token.strip().lower()
+            if not provider or provider in seen:
+                continue
+            if provider not in self.PROVIDER_STAGE:
+                logger.warning(f'Ignoring unknown provider in overnight order: {provider}')
+                continue
+            order.append(provider)
+            seen.add(provider)
+        if not order:
+            return ['xai', 'perplexity', 'mistral']
+        return order
+
+    def _provider_order_for_run(self, run_reason: Optional[str]) -> Tuple[List[str], str]:
+        """
+        Select provider order for this cycle.
+        Returns (provider_order, mode_label).
+        """
+        if not run_reason or not run_reason.startswith('overnight_'):
+            return list(self.FULL_PROVIDER_ORDER), 'full_market'
+
+        if not self.overnight_light_mode:
+            return list(self.FULL_PROVIDER_ORDER), 'full_overnight'
+
+        self._overnight_cycles_since_full += 1
+        if self._overnight_cycles_since_full >= self.overnight_full_debate_every:
+            self._overnight_cycles_since_full = 0
+            return list(self.FULL_PROVIDER_ORDER), 'full_overnight_refresh'
+
+        return list(self.overnight_light_provider_order), 'light_overnight'
+
+    def _provider_groups_for_order(self, provider_order: List[str]) -> List[Tuple[str, List[str]]]:
+        """Build ordered provider groups for council debate loops."""
+        grouped: Dict[str, List[str]] = {'core': [], 'join': [], 'side': []}
+        for provider in provider_order:
+            stage = self.PROVIDER_STAGE.get(provider)
+            if not stage:
+                continue
+            grouped[stage].append(provider)
+        return [(stage, grouped[stage]) for stage in ('core', 'join', 'side') if grouped[stage]]
 
     def _observed_fixed_holiday(self, day: date_cls) -> date_cls:
         """Observed date for fixed-date NYSE holidays."""
@@ -432,12 +517,13 @@ class PredictionWorker:
 
         return min(candidates, key=lambda x: x[0])
 
-    def _run_prediction_cycle(self, cycle_id: Optional[int] = None):
+    def _run_prediction_cycle(self, cycle_id: Optional[int] = None, run_reason: Optional[str] = None):
         """
         Execute a complete prediction cycle
 
         Args:
             cycle_id: Optional existing cycle ID to use
+            run_reason: Optional scheduler reason label (market_open, overnight_*, manual, etc.)
         """
         db = ForesightDB(self.db_path)
 
@@ -447,12 +533,19 @@ class PredictionWorker:
                 cycle_id = db.create_cycle()
                 
             self.current_cycle_id = cycle_id
-            logger.info(f'Started processing prediction cycle {cycle_id}')
+            provider_order, provider_mode = self._provider_order_for_run(run_reason)
+            provider_groups = self._provider_groups_for_order(provider_order)
+
+            logger.info(
+                f'Started processing prediction cycle {cycle_id} '
+                f'(reason={run_reason or "unspecified"}, provider_mode={provider_mode})'
+            )
+            logger.info(f'Provider order for cycle {cycle_id}: {provider_order}')
             # Note: cycle_start event is auto-emitted by db.create_cycle()
 
             # Phase 1: Discover stocks
             logger.info('Phase 1: Discovering stocks')
-            symbols = self._discover_stocks(db, cycle_id)
+            symbols = self._discover_stocks(db, cycle_id, provider_order=provider_order)
 
             if not symbols:
                 logger.warning('No stocks discovered, completing cycle')
@@ -462,9 +555,15 @@ class PredictionWorker:
             # Phase 2: Generate predictions for discovered stocks
             logger.info(f'Phase 2: Generating predictions for {len(symbols)} stocks')
             for symbol in symbols:
-                if not self.running:
+                if run_reason != 'manual' and not self.running:
                     break
-                self._process_stock(db, cycle_id, symbol)
+                self._process_stock(
+                    db,
+                    cycle_id,
+                    symbol,
+                    provider_groups=provider_groups,
+                    synthesis_order=provider_order
+                )
 
             # Phase 3: Complete cycle
             db.complete_cycle(cycle_id)
@@ -482,29 +581,61 @@ class PredictionWorker:
             self.current_cycle_id = None
             self.last_cycle_time = time.time()
 
-    def _discover_stocks(self, db: ForesightDB, cycle_id: int) -> list:
+    def _discover_stocks(
+        self,
+        db: ForesightDB,
+        cycle_id: int,
+        provider_order: Optional[List[str]] = None
+    ) -> list:
         """
-        Discover interesting stocks using LLM
+        Discover interesting symbols (equities + optional crypto list).
 
         Args:
             db: Database instance
             cycle_id: Current cycle ID
+            provider_order: Provider sequence for discovery debate.
 
         Returns:
-            List of stock symbols
+            List of validated symbols
         """
         try:
-            max_stocks = self.config['MAX_STOCKS']
+            max_stocks = int(self.config['MAX_STOCKS'])
             logger.debug(f'Calling discover_stocks_debate with max_stocks={max_stocks}')
             weights = self._get_provider_weights(db)
-            symbols = self.prediction_service.discover_stocks_debate(count=max_stocks, provider_weights=weights)
-            logger.debug(f'Discovery returned: {symbols}')
+            discovered_symbols: List[str] = []
+
+            if max_stocks > 0:
+                discovered_symbols = self.prediction_service.discover_stocks_debate(
+                    count=max_stocks,
+                    provider_weights=weights,
+                    stage_order=provider_order
+                )
+            logger.debug(f'Equity discovery returned: {discovered_symbols}')
+
+            symbols: List[str] = []
+            seen = set()
+            for symbol in discovered_symbols:
+                key = symbol.upper()
+                if key in seen:
+                    continue
+                symbols.append(key)
+                seen.add(key)
+
+            if self.include_crypto and self.max_crypto_symbols > 0 and self.crypto_symbols:
+                configured_crypto = self.crypto_symbols[:self.max_crypto_symbols]
+                logger.info(f'Adding configured crypto symbols for cycle: {configured_crypto}')
+                for symbol in configured_crypto:
+                    key = symbol.upper()
+                    if key in seen:
+                        continue
+                    symbols.append(key)
+                    seen.add(key)
 
             if not symbols:
-                logger.warning('Discovery returned no stocks')
+                logger.warning('Discovery returned no symbols')
                 return []
 
-            logger.info(f'Discovered {len(symbols)} stocks: {symbols}')
+            logger.info(f'Discovered {len(symbols)} candidate symbols: {symbols}')
 
             # Validate and add stocks to database
             valid_symbols = []
@@ -525,6 +656,7 @@ class PredictionWorker:
                     ticker=symbol,
                     name=stock_info.get('name', symbol),
                     metadata={
+                        'asset_type': 'crypto' if symbol.upper() in self.crypto_symbol_set else 'equity',
                         'sector': stock_info.get('sector'),
                         'industry': stock_info.get('industry'),
                         'market_cap': stock_info.get('market_cap')
@@ -567,7 +699,14 @@ class PredictionWorker:
         logger.info(f'Provider weights for cycle: {weights}')
         return weights
 
-    def _process_stock(self, db: ForesightDB, cycle_id: int, symbol: str):
+    def _process_stock(
+        self,
+        db: ForesightDB,
+        cycle_id: int,
+        symbol: str,
+        provider_groups: Optional[List[Tuple[str, List[str]]]] = None,
+        synthesis_order: Optional[List[str]] = None
+    ):
         """
         Process a single stock: fetch data, get multiple analyst reports, and a consensus
         """
@@ -602,35 +741,39 @@ class PredictionWorker:
             current_price = stock_data.get('current_price')
             # Set target time to 7 days from now
             target_time = datetime.now() + timedelta(days=7)
-            provider_groups = [
-                ('core', ['xai', 'gemini']),
-                ('join', ['anthropic', 'openai', 'perplexity']),
-                ('side', ['mistral', 'cohere']),
-            ]
+            if provider_groups is None:
+                provider_groups = self._provider_groups_for_order(self.FULL_PROVIDER_ORDER)
+            if synthesis_order is None:
+                synthesis_order = self.FULL_PROVIDER_ORDER
 
             for stage_name, providers in provider_groups:
                 for provider_name in providers:
-                    logger.info(f'[{symbol}] [{stage_name}] Requesting analysis from {provider_name}')
-                    report = self.prediction_service.generate_prediction_swarm(
-                        symbol,
-                        stock_data,
-                        provider_name=provider_name
-                    )
-                    if not report:
-                        continue
+                    try:
+                        logger.info(f'[{symbol}] [{stage_name}] Requesting analysis from {provider_name}')
+                        report = self.prediction_service.generate_prediction_swarm(
+                            symbol,
+                            stock_data,
+                            provider_name=provider_name
+                        )
+                        if not report:
+                            continue
 
-                    report['stage'] = stage_name
-                    analyst_reports.append(report)
-                    db.add_prediction(
-                        cycle_id=cycle_id,
-                        stock_id=stock_id,
-                        provider=report['provider'],
-                        predicted_direction=report['prediction'],
-                        confidence=report['confidence'],
-                        initial_price=current_price,
-                        target_time=target_time,
-                        reasoning=f"[{stage_name}] {report['reasoning']}"
-                    )
+                        report['stage'] = stage_name
+                        analyst_reports.append(report)
+                        db.add_prediction(
+                            cycle_id=cycle_id,
+                            stock_id=stock_id,
+                            provider=report['provider'],
+                            predicted_direction=report['prediction'],
+                            confidence=report['confidence'],
+                            initial_price=current_price,
+                            target_time=target_time,
+                            reasoning=f"[{stage_name}] {report['reasoning']}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f'[{symbol}] [{stage_name}] Provider {provider_name} failed: {e}'
+                        )
 
             # --- WEIGHTED COUNCIL VOTE + SYNTHESIS PHASE ---
             if analyst_reports:
@@ -675,7 +818,8 @@ class PredictionWorker:
                     symbol,
                     stock_data,
                     analyst_reports,
-                    provider_weights=weights
+                    provider_weights=weights,
+                    stage_order=synthesis_order
                 )
                 if consensus:
                     # Persist each synthesis vote for transparency

@@ -38,6 +38,12 @@ class Config:
     OVERNIGHT_CHECK_TIMES = os.environ.get('OVERNIGHT_CHECK_TIMES', '20:00,06:00')
     OVERNIGHT_LOOKAHEAD_HOURS = int(os.environ.get('OVERNIGHT_LOOKAHEAD_HOURS', 18))
     SCHEDULE_POLL_SECONDS = int(os.environ.get('SCHEDULE_POLL_SECONDS', 20))
+    OVERNIGHT_LIGHT_MODE = os.environ.get('OVERNIGHT_LIGHT_MODE', 'true').lower() not in ('0', 'false', 'no')
+    OVERNIGHT_FULL_DEBATE_EVERY = int(os.environ.get('OVERNIGHT_FULL_DEBATE_EVERY', 3))
+    OVERNIGHT_LIGHT_PROVIDER_ORDER = os.environ.get(
+        'OVERNIGHT_LIGHT_PROVIDER_ORDER',
+        'xai,perplexity,mistral'
+    )
 
     # LLM Providers
     PROVIDERS = {
@@ -76,6 +82,9 @@ class Config:
     # Stock data
     MAX_STOCKS = int(os.environ.get('MAX_STOCKS', 10))  # Max stocks to track per cycle
     LOOKBACK_DAYS = int(os.environ.get('LOOKBACK_DAYS', 30))  # Historical data to fetch
+    INCLUDE_CRYPTO = os.environ.get('INCLUDE_CRYPTO', 'true').lower() not in ('0', 'false', 'no')
+    MAX_CRYPTO_SYMBOLS = int(os.environ.get('MAX_CRYPTO_SYMBOLS', 3))
+    CRYPTO_SYMBOLS = os.environ.get('CRYPTO_SYMBOLS', 'BTC-USD,ETH-USD,SOL-USD')
 
 
 class DevelopmentConfig(Config):
