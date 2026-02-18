@@ -129,6 +129,22 @@ class TestHistoryEndpoint:
 
         assert data['per_page'] == 100  # Max enforced
 
+    def test_history_pagination_second_page(self, client, db):
+        """History endpoint returns distinct pages with total metadata."""
+        for _ in range(5):
+            db.create_cycle()
+
+        page_one = json.loads(client.get('/api/history?page=1&per_page=2').data)
+        page_two = json.loads(client.get('/api/history?page=2&per_page=2').data)
+
+        assert page_two['page'] == 2
+        assert page_two['per_page'] == 2
+        assert page_two['total'] == 5
+        assert page_two['pages'] == 3
+        assert set(c['id'] for c in page_one['cycles']).isdisjoint(
+            set(c['id'] for c in page_two['cycles'])
+        )
+
 
 @pytest.mark.api
 class TestStockDetailEndpoint:

@@ -65,25 +65,25 @@ def stats():
 def history():
     """Get historical cycles with pagination"""
     page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 20, type=int), 100)  # Max 100 per page
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Normalize pagination inputs
+    page = max(page, 1)
+    per_page = min(max(per_page, 1), 100)  # Max 100 per page
+    offset = (page - 1) * per_page
 
     db = get_db()
 
-    # Get all recent cycles (get_recent_cycles doesn't support pagination yet)
-    # TODO: Add pagination support to ForesightDB.get_recent_cycles()
-    all_cycles = db.get_recent_cycles(limit=1000)
-
-    # Manual pagination
-    start = (page - 1) * per_page
-    end = start + per_page
-    cycles = all_cycles[start:end]
+    total_cycles = db.get_cycle_count()
+    cycles = db.get_recent_cycles(limit=per_page, offset=offset)
+    pages = (total_cycles + per_page - 1) // per_page if total_cycles > 0 else 0
 
     return jsonify({
         'cycles': cycles,
         'page': page,
         'per_page': per_page,
-        'total': len(all_cycles),
-        'pages': (len(all_cycles) + per_page - 1) // per_page
+        'total': total_cycles,
+        'pages': pages
     })
 
 

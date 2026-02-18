@@ -78,9 +78,13 @@ case "$1" in
     db)
         echo -e "${GREEN}Running database tests...${NC}"
         pytest -m database -v
-        # Also run original test_db.py
-        echo -e "${GREEN}Running original test_db.py...${NC}"
-        python test_db.py
+        # Run legacy DB test script only if present
+        if [ -f "test_db.py" ]; then
+            echo -e "${GREEN}Running original test_db.py...${NC}"
+            python test_db.py
+        else
+            echo -e "${YELLOW}Skipping legacy test_db.py (file not present)${NC}"
+        fi
         ;;
 
     coverage)

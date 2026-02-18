@@ -47,6 +47,26 @@ class TestCycleEdgeCases:
         for i in range(len(recent) - 1):
             assert recent[i]['id'] >= recent[i + 1]['id']
 
+    def test_recent_cycles_support_offset(self, db):
+        """Recent cycles support offset pagination."""
+        for _ in range(6):
+            cid = db.create_cycle()
+            db.complete_cycle(cid)
+
+        first_page = db.get_recent_cycles(limit=2, offset=0)
+        second_page = db.get_recent_cycles(limit=2, offset=2)
+
+        assert len(first_page) == 2
+        assert len(second_page) == 2
+        assert set(c['id'] for c in first_page).isdisjoint(set(c['id'] for c in second_page))
+
+    def test_cycle_count_matches_rows(self, db):
+        """Cycle count returns total number of cycles."""
+        for _ in range(4):
+            db.create_cycle()
+
+        assert db.get_cycle_count() == 4
+
 
 @pytest.mark.database
 @pytest.mark.unit

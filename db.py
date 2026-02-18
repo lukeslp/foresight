@@ -245,14 +245,22 @@ class ForesightDB:
             status='completed'
         )
 
-    def get_recent_cycles(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent cycles"""
+    def get_recent_cycles(self, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get recent cycles with optional pagination."""
+        limit = max(1, int(limit))
+        offset = max(0, int(offset))
         with self.get_connection() as conn:
             rows = conn.execute(
-                "SELECT * FROM cycles ORDER BY start_time DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM cycles ORDER BY start_time DESC LIMIT ? OFFSET ?",
+                (limit, offset)
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def get_cycle_count(self) -> int:
+        """Get total number of cycles."""
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT COUNT(*) as count FROM cycles").fetchone()
+            return int(row['count']) if row else 0
 
     # ========== Stock CRUD ==========
 
