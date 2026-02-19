@@ -283,6 +283,7 @@ class ForesightDashboard {
     if (drawer) {
       drawer.setAttribute('aria-hidden', 'false');
       drawer.setAttribute('aria-modal', 'true');
+      drawer.setAttribute('aria-label', `${symbol} stock details`);
     }
 
     this.grid.highlightTile(symbol);
