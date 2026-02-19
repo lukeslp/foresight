@@ -301,7 +301,7 @@ def start_cycle():
     # Check if there's already an active cycle
     current_cycle = db.get_current_cycle()
 
-    if current_cycle:
+    if current_cycle and not current_cycle.get('_is_historical'):
         return jsonify({
             'error': 'Cycle already running',
             'cycle_id': current_cycle['id']
