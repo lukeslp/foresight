@@ -4,3 +4,9 @@
 
 # 2026-02-18 19:36:33.090143
 +REST API design question: GET /api/current returns 404 when no prediction cycles exist yet (empty state). Frontend fetch() treats this as an error, causing noise. Fix proposed: return 200 with {cycle: null, status: 'no_cycles'}. Is 200+null better than 404 here? What about 204? Any other considerations for 'empty state' vs 'not found' semantics in REST? Also is 503 appropriate for a /health endpoint when a background worker thread isn't running?
+
+# 2026-02-18 19:50:06.840786
++REST API: /api/current returns 404 for empty state (no cycles yet). Fix: 200 with cycle:null. Correct? 204 better? Empty-state vs not-found REST semantics?
+
+# 2026-02-18 19:50:06.841125
++REST API: /api/current returns 404 for empty state (no cycles yet). Fix: 200 with cycle:null. Correct? 204 better? Empty-state vs not-found REST semantics?
