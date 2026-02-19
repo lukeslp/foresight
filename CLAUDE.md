@@ -33,17 +33,23 @@ The `PredictionWorker` (`app/worker.py`) runs in a background daemon thread:
 3. **Phase 3 — Multi-Agent Debate**: For each stock, each provider runs sub-agent analysis via `generate_prediction_swarm()`
 4. **Phase 4 — Voting + Synthesis**: Weighted council vote plus weighted multi-provider synthesis via `synthesize_council_swarm()`
 
-### LLM Provider Roles
+### LLM Provider Council (Weighted Democracy)
 
-Configured via environment or `app/config.py`:
+All 8 providers participate in every phase. No fixed roles. Weights are adjustable via env vars.
 
-| Role | Default Provider | Model | Purpose |
-|------|-----------------|-------|---------|
-| `discovery` | `xai` | `grok-2-1212` | Stock discovery |
-| `prediction` | `anthropic` | `claude-sonnet-4-20250514` | Technical analysis |
-| `synthesis` | `gemini` | `gemini-2.0-flash-exp` | Debate moderator / confidence synthesis |
+| Provider | Tier | Default Weight | Override Env Var |
+|----------|------|---------------|-----------------|
+| `anthropic` | premium | 1.5 | `PROVIDER_WEIGHT_ANTHROPIC` |
+| `openai` | premium | 1.5 | `PROVIDER_WEIGHT_OPENAI` |
+| `gemini` | premium | 1.5 | `PROVIDER_WEIGHT_GEMINI` |
+| `xai` | mid | 1.1 | `PROVIDER_WEIGHT_XAI` |
+| `perplexity` | standard | 0.9 | `PROVIDER_WEIGHT_PERPLEXITY` |
+| `huggingface` | standard | 0.85 | `PROVIDER_WEIGHT_HUGGINGFACE` |
+| `mistral` | standard | 0.8 | `PROVIDER_WEIGHT_MISTRAL` |
+| `cohere` | standard | 0.6 | `PROVIDER_WEIGHT_COHERE` |
 
-Override via env vars: `DISCOVERY_PROVIDER`, `PREDICTION_PROVIDER`, `SYNTHESIS_PROVIDER`.
+Provider call order: `PROVIDER_ORDER` env var (default: `anthropic,openai,gemini,xai,...`).
+Overnight light mode uses premium tier by default: `OVERNIGHT_LIGHT_PROVIDER_ORDER=anthropic,openai,gemini`.
 
 **Critical**: All providers use `provider.complete(messages=[Message(...)])` from `~/shared/llm_providers/`. Never call `provider.generate()` — it does not exist.
 
