@@ -60,16 +60,14 @@
       </div>
 
       <div id="grid-stage" class="grid-stage" aria-label="Stock prediction tiles"></div>
+      <p id="grid-counter" class="grid-counter" aria-live="polite"></p>
     </section>
 
     <aside class="insights" role="complementary" aria-label="Model insights">
       <section class="panel">
-        <h2>Council Roles</h2>
-        <div class="roles-grid">
-          <div class="role"><b>Grok</b><span>Discovery + Contrarian</span></div>
-          <div class="role"><b>Claude</b><span>Primary Analysis</span></div>
-          <div class="role"><b>Mistral</b><span>Independent Read</span></div>
-          <div class="role"><b>Gemini</b><span>Consensus Chair</span></div>
+        <h2>Provider Weights</h2>
+        <div id="provider-weights-host" class="weights-grid" aria-label="Provider vote weights">
+          <div class="loading-skeleton" aria-hidden="true"></div>
         </div>
       </section>
 

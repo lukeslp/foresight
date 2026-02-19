@@ -147,7 +147,13 @@ class ForesightDashboard {
   }
 
   async reload() {
-    await Promise.all([this.loadCurrent(), this.loadStats()]);
+    const stage = document.getElementById('grid-stage');
+    stage?.classList.add('loading');
+    try {
+      await Promise.all([this.loadCurrent(), this.loadStats()]);
+    } finally {
+      stage?.classList.remove('loading');
+    }
   }
 
   async loadCurrent() {
