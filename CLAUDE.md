@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foresight is a stock prediction dashboard. A background worker runs continuous prediction cycles with a staged provider democracy: core (`xai`, `gemini`), join (`anthropic`, `openai`, `perplexity`), and side (`mistral`, `cohere`) providers debate at discovery, analysis, council vote, and final synthesis. Accuracy is tracked over time.
+Foresight is a stock prediction dashboard. A background worker runs continuous prediction cycles where 8 language model providers debate as a weighted democracy — no fixed roles. All providers participate in every phase (discovery, analysis, synthesis). Premium tier (Claude/ChatGPT/Gemini) carry 1.5× weight, xai 1.1×, others lower. Accuracy is tracked over time.
 
 **Port**: 5062 | **URL**: https://dr.eamer.dev/foresight
 

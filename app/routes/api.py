@@ -301,6 +301,8 @@ def worker_status():
             'overnight_light_mode': current_app.config['OVERNIGHT_LIGHT_MODE'],
             'overnight_full_debate_every': current_app.config['OVERNIGHT_FULL_DEBATE_EVERY'],
             'overnight_light_provider_order': current_app.config['OVERNIGHT_LIGHT_PROVIDER_ORDER'],
+            'provider_order': current_app.config.get('PROVIDER_ORDER', []),
+            'provider_weights': current_app.config.get('PROVIDER_WEIGHTS', {}),
             'max_stocks': current_app.config['MAX_STOCKS'],
             'lookback_days': current_app.config['LOOKBACK_DAYS'],
             'include_crypto': current_app.config['INCLUDE_CRYPTO'],
