@@ -40,25 +40,24 @@ class PredictionService:
         self._init_providers()
 
     def _init_providers(self):
-        """Initialize LLM providers from config"""
-        for role, provider_name in self.config['PROVIDERS'].items():
+        """Initialize all council providers from PROVIDER_ORDER config."""
+        provider_order = self.config.get(
+            'PROVIDER_ORDER',
+            ['anthropic', 'openai', 'gemini', 'xai', 'perplexity', 'mistral', 'huggingface', 'cohere']
+        )
+        for provider_name in provider_order:
             try:
-                # We need to use ProviderFactory to get the provider
                 provider = ProviderFactory.get_provider(provider_name)
                 model = self._resolve_model(provider_name, provider)
-                
-                # Manually override the model if specified
                 if model:
                     provider.model = model
-                    logger.info(f'Initialized {provider_name} for {role} using model {model}')
+                    logger.info(f'Initialized {provider_name} using model {model}')
                 else:
-                    logger.info(f'Initialized {provider_name} for {role}')
-                
-                self.providers[role] = provider
+                    logger.info(f'Initialized {provider_name}')
+                self.providers[provider_name] = provider
                 self._mark_provider_success(provider_name)
-
             except Exception as e:
-                logger.error(f'Failed to initialize {provider_name} for {role}: {str(e)}')
+                logger.error(f'Failed to initialize {provider_name}: {str(e)}')
                 self._mark_provider_failure(provider_name, e)
 
     def _resolve_model(self, provider_name: str, provider_obj=None) -> Optional[str]:
@@ -174,28 +173,36 @@ class PredictionService:
     @staticmethod
     def base_provider_weights() -> Dict[str, float]:
         """
-        Baseline trust weights before performance adjustment.
+        Baseline trust weights. Premium tier (Claude/ChatGPT/Gemini) at 1.5×,
+        xai mid at 1.1×, rest lower. Override per-provider via config.
         """
         return {
-            'xai': 1.0,           # cheap search/context
-            'gemini': 1.0,        # cheap synthesis/search
-            'anthropic': 1.2,     # strong reasoning
-            'openai': 1.2,        # strong reasoning
-            'perplexity': 1.1,    # web-grounded, valuable for stock news
-            'mistral': 0.8,       # side input
-            'cohere': 0.6,        # low default weight
+            'anthropic':   1.5,   # premium — strongest reasoning
+            'openai':      1.5,   # premium — strong reasoning
+            'gemini':      1.5,   # premium — strong synthesis/search
+            'xai':         1.1,   # mid-tier — fast context/search
+            'perplexity':  0.9,   # web-grounded, good for news
+            'mistral':     0.8,   # standard
             'huggingface': 0.85,  # open-weight Llama, diversity input
+            'cohere':      0.6,   # trial limits, low default
         }
+
+    def get_configured_base_weights(self) -> Dict[str, float]:
+        """Base weights with any per-provider overrides from PROVIDER_WEIGHTS config."""
+        base = dict(self.base_provider_weights())
+        overrides = self.config.get('PROVIDER_WEIGHTS', {})
+        for p, w in overrides.items():
+            base[p] = float(w)
+        return base
 
     def build_provider_weights(self, performance_map: Dict[str, float]) -> Dict[str, float]:
         """
         Build dynamic provider weights using historical accuracy where available.
         """
         weights = {}
-        for provider, base in self.base_provider_weights().items():
+        for provider, base in self.get_configured_base_weights().items():
             acc = performance_map.get(provider)
             if acc is None:
-                # Neutral prior when provider has no evaluated history
                 factor = 1.0
             else:
                 # Map accuracy [0..1] to factor [0.5..1.5]
@@ -204,11 +211,11 @@ class PredictionService:
         return weights
 
     def _provider_stage(self, provider_name: str) -> str:
-        if provider_name in ('xai', 'gemini'):
-            return 'core'
-        if provider_name in ('anthropic', 'openai', 'perplexity'):
-            return 'join'
-        return 'side'  # mistral, cohere, huggingface
+        if provider_name in ('anthropic', 'openai', 'gemini'):
+            return 'premium'
+        if provider_name == 'xai':
+            return 'mid'
+        return 'standard'  # perplexity, mistral, cohere, huggingface
 
     def synthesize_council_swarm(
         self,
