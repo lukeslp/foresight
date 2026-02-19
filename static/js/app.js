@@ -177,8 +177,10 @@ class ForesightDashboard {
       return;
     }
 
-    const started = cycle.started_at ? new Date(cycle.started_at).toLocaleTimeString() : '--';
-    card.innerHTML = `<p>Cycle #${cycle.id} <b style="color:var(--accent);text-transform:uppercase;">${cycle.status || 'unknown'}</b></p><p style="margin-top:.35rem;">Started ${started}</p>`;
+    const ts = cycle.start_time || cycle.started_at;
+    const started = ts ? new Date(ts).toLocaleTimeString() : '--';
+    const label = cycle._is_historical ? 'Last cycle' : `Cycle #${cycle.id}`;
+    card.innerHTML = `<p>${label} <b style="color:var(--accent);text-transform:uppercase;">${cycle.status || 'unknown'}</b></p><p style="margin-top:.35rem;">Started ${started}</p>`;
   }
 
   async loadStats() {
