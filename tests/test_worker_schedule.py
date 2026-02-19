@@ -289,3 +289,109 @@ def test_process_stock_continues_after_provider_failure(monkeypatch):
 
     providers = [row['provider'] for row in db.predictions]
     assert 'gemini' in providers
+
+
+@pytest.mark.unit
+def test_cycle_blocklist_skips_rate_limited_provider(monkeypatch):
+    class _StockServiceForBlocklist:
+        @staticmethod
+        def fetch_historical_data(_symbol, days=30):
+            return {
+                'close': [100.0, 101.0, 102.0],
+                'volume': [1000, 1200, 1100],
+                'dates': ['2026-02-16', '2026-02-17', '2026-02-18'],
+            }
+
+    class _PredictionServiceForBlocklist:
+        def __init__(self, _config):
+            self.calls = []
+
+        @staticmethod
+        def build_provider_weights(_performance_map):
+            return {'xai': 1.0, 'cohere': 0.6}
+
+        def generate_prediction_swarm(self, symbol, _stock_data, provider_name):
+            self.calls.append((symbol, provider_name))
+            if provider_name == 'cohere':
+                return None
+            return {
+                'provider': provider_name,
+                'prediction': 'up',
+                'confidence': 0.7,
+                'reasoning': 'ok',
+            }
+
+        @staticmethod
+        def get_provider_runtime_status():
+            return {
+                'cohere': {
+                    'healthy': False,
+                    'last_error': 'status_code: 429 trial key limit reached',
+                    'last_failed_at': '2026-02-18T18:31:41'
+                }
+            }
+
+        @staticmethod
+        def synthesize_council_swarm(*_args, **_kwargs):
+            return None
+
+    class _FakeDB:
+        def __init__(self):
+            self.predictions = []
+
+        @staticmethod
+        def get_stock(_symbol):
+            return {'id': 1}
+
+        @staticmethod
+        def get_provider_leaderboard():
+            return []
+
+        def add_prediction(self, **kwargs):
+            self.predictions.append(kwargs)
+            return len(self.predictions)
+
+    monkeypatch.setattr(worker_module, 'StockService', _StockServiceForBlocklist)
+    monkeypatch.setattr(worker_module, 'PredictionService', _PredictionServiceForBlocklist)
+
+    config = {
+        'DB_PATH': '/tmp/test_foresight_blocklist.db',
+        'MARKET_TIMEZONE': 'America/New_York',
+        'USE_NYSE_CALENDAR': False,
+        'MARKET_OPEN_HOUR': 9,
+        'MARKET_OPEN_MINUTE': 30,
+        'MARKET_CLOSE_HOUR': 16,
+        'MARKET_CLOSE_MINUTE': 0,
+        'NYSE_EARLY_CLOSE_HOUR': 13,
+        'NYSE_EARLY_CLOSE_MINUTE': 0,
+        'MARKET_OPEN_INTERVAL_SECONDS': 1800,
+        'OVERNIGHT_CHECK_TIMES': '20:00,06:00',
+        'OVERNIGHT_LOOKAHEAD_HOURS': 18,
+        'SCHEDULE_POLL_SECONDS': 20,
+        'MAX_STOCKS': 5,
+        'LOOKBACK_DAYS': 30,
+    }
+
+    worker = worker_module.PredictionWorker(config)
+    db = _FakeDB()
+    blocklist = set()
+
+    worker._process_stock(
+        db,
+        cycle_id=1,
+        symbol='AAPL',
+        provider_groups=[('core', ['xai']), ('side', ['cohere'])],
+        synthesis_order=['xai', 'cohere'],
+        provider_blocklist=blocklist
+    )
+    worker._process_stock(
+        db,
+        cycle_id=1,
+        symbol='MSFT',
+        provider_groups=[('core', ['xai']), ('side', ['cohere'])],
+        synthesis_order=['xai', 'cohere'],
+        provider_blocklist=blocklist
+    )
+
+    cohere_calls = [call for call in worker.prediction_service.calls if call[1] == 'cohere']
+    assert len(cohere_calls) == 1

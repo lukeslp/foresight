@@ -535,6 +535,7 @@ class PredictionWorker:
             self.current_cycle_id = cycle_id
             provider_order, provider_mode = self._provider_order_for_run(run_reason)
             provider_groups = self._provider_groups_for_order(provider_order)
+            provider_blocklist: Set[str] = set()
 
             logger.info(
                 f'Started processing prediction cycle {cycle_id} '
@@ -562,7 +563,8 @@ class PredictionWorker:
                     cycle_id,
                     symbol,
                     provider_groups=provider_groups,
-                    synthesis_order=provider_order
+                    synthesis_order=provider_order,
+                    provider_blocklist=provider_blocklist
                 )
 
             # Phase 3: Complete cycle
@@ -705,7 +707,8 @@ class PredictionWorker:
         cycle_id: int,
         symbol: str,
         provider_groups: Optional[List[Tuple[str, List[str]]]] = None,
-        synthesis_order: Optional[List[str]] = None
+        synthesis_order: Optional[List[str]] = None,
+        provider_blocklist: Optional[Set[str]] = None
     ):
         """
         Process a single stock: fetch data, get multiple analyst reports, and a consensus
@@ -745,9 +748,16 @@ class PredictionWorker:
                 provider_groups = self._provider_groups_for_order(self.FULL_PROVIDER_ORDER)
             if synthesis_order is None:
                 synthesis_order = self.FULL_PROVIDER_ORDER
+            if provider_blocklist is None:
+                provider_blocklist = set()
 
             for stage_name, providers in provider_groups:
                 for provider_name in providers:
+                    if provider_name in provider_blocklist:
+                        logger.info(
+                            f'[{symbol}] [{stage_name}] Skipping blocked provider {provider_name} for this cycle'
+                        )
+                        continue
                     try:
                         logger.info(f'[{symbol}] [{stage_name}] Requesting analysis from {provider_name}')
                         report = self.prediction_service.generate_prediction_swarm(
@@ -756,6 +766,15 @@ class PredictionWorker:
                             provider_name=provider_name
                         )
                         if not report:
+                            runtime = self.prediction_service.get_provider_runtime_status().get(provider_name, {})
+                            error_text = str(runtime.get('last_error') or '')
+                            should_block = (not runtime.get('healthy', True)) or self._should_block_provider(error_text)
+                            if should_block:
+                                provider_blocklist.add(provider_name)
+                                logger.warning(
+                                    f'[{symbol}] [{stage_name}] Blocking provider {provider_name} '
+                                    f'for remaining cycle due to error: {error_text}'
+                                )
                             continue
 
                         report['stage'] = stage_name
@@ -771,6 +790,12 @@ class PredictionWorker:
                             reasoning=f"[{stage_name}] {report['reasoning']}"
                         )
                     except Exception as e:
+                        if self._should_block_provider(str(e)):
+                            provider_blocklist.add(provider_name)
+                            logger.warning(
+                                f'[{symbol}] [{stage_name}] Blocking provider {provider_name} '
+                                f'for remaining cycle due to exception: {e}'
+                            )
                         logger.warning(
                             f'[{symbol}] [{stage_name}] Provider {provider_name} failed: {e}'
                         )
@@ -814,12 +839,16 @@ class PredictionWorker:
                 )
 
                 # Final-stage democratic synthesis (no single lead model)
+                active_synthesis_order = [p for p in synthesis_order if p not in provider_blocklist]
+                if not active_synthesis_order:
+                    logger.warning(f'[{symbol}] No providers left for synthesis after cycle blocklist filtering')
+                    active_synthesis_order = synthesis_order
                 consensus = self.prediction_service.synthesize_council_swarm(
                     symbol,
                     stock_data,
                     analyst_reports,
                     provider_weights=weights,
-                    stage_order=synthesis_order
+                    stage_order=active_synthesis_order
                 )
                 if consensus:
                     # Persist each synthesis vote for transparency
@@ -858,3 +887,20 @@ class PredictionWorker:
 
         except Exception as e:
             logger.error(f'Error processing stock {symbol}: {e}', exc_info=True)
+
+    @staticmethod
+    def _should_block_provider(error_text: str) -> bool:
+        """Return True for hard-failure classes we should skip for the rest of this cycle."""
+        if not error_text:
+            return False
+        lowered = error_text.lower()
+        hard_failure_markers = (
+            "status_code: 429",
+            "429",
+            "trial key",
+            "rate limit",
+            "authorization required",
+            "invalid api key",
+            "unexpected keyword argument 'proxies'",
+        )
+        return any(marker in lowered for marker in hard_failure_markers)
