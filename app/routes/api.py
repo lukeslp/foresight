@@ -22,8 +22,10 @@ def current():
     if not cycle:
         return jsonify({
             'status': 'no_cycles',
-            'message': 'No prediction cycles yet'
-        }), 404
+            'message': 'No prediction cycles yet',
+            'cycle': None,
+            'predictions': []
+        }), 200
 
     # Get predictions for this cycle
     predictions = db.get_predictions_for_cycle(cycle['id'])
