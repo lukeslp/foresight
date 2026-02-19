@@ -170,7 +170,15 @@ class ForesightDashboard {
       this.currentCycle = payload.cycle;
       this.renderCycleCard(payload.cycle);
       this.hideGridEmpty();
-      this.grid.update(this.predictionsToGrid(payload.predictions || []));
+      const allPredictions = payload.predictions || [];
+      this.grid.update(this.predictionsToGrid(allPredictions));
+
+      const counter = document.getElementById('grid-counter');
+      if (counter) {
+        counter.textContent = allPredictions.length > 50
+          ? `Showing 50 of ${allPredictions.length} stocks`
+          : '';
+      }
 
       const active = ['running', 'active'].includes(payload.cycle.status);
       this.setCycleButtonState(active);
@@ -275,36 +283,45 @@ class ForesightDashboard {
       const payload = await response.json();
       const providers = payload?.providers || {};
       const runtime = payload?.runtime || {};
-      const merged = {};
 
-      // Configured roles first
-      Object.entries(providers).forEach(([role, info]) => {
-        const key = info?.provider || role;
-        merged[key] = {
-          key,
-          role,
+      // Build merged view: providers keyed by provider_name, runtime overrides health
+      const merged = {};
+      Object.entries(providers).forEach(([name, info]) => {
+        merged[name] = {
+          key: name,
           status: info?.status || 'error',
-          last_error: info?.last_error || info?.error || null
+          weight: info?.weight ?? null,
+          last_error: info?.last_error || null
         };
       });
-
-      // Add any runtime-only providers (xai, perplexity, etc.)
-      Object.entries(runtime).forEach(([providerName, info]) => {
-        if (!merged[providerName]) {
-          merged[providerName] = {
-            key: providerName,
-            role: 'runtime',
-            status: info?.healthy ? 'configured' : 'error',
-            last_error: info?.last_error || null
-          };
+      Object.entries(runtime).forEach(([name, info]) => {
+        if (!merged[name]) {
+          merged[name] = { key: name, status: info?.healthy ? 'configured' : 'error', weight: null, last_error: info?.last_error || null };
         } else if (info?.healthy === false) {
-          // Runtime failure overrides configured-ok surface
-          merged[providerName].status = 'error';
-          merged[providerName].last_error = info?.last_error || merged[providerName].last_error;
+          merged[name].status = 'error';
+          merged[name].last_error = info?.last_error || merged[name].last_error;
         }
       });
 
       const entries = Object.values(merged);
+
+      // Populate provider weights panel
+      const weightsHost = document.getElementById('provider-weights-host');
+      if (weightsHost) {
+        const PRETTY = { xai: 'xAI', anthropic: 'Anthropic', gemini: 'Gemini', mistral: 'Mistral', perplexity: 'Perplexity', openai: 'OpenAI', huggingface: 'HuggingFace', cohere: 'Cohere' };
+        const weighted = Object.entries(providers)
+          .filter(([, info]) => info?.weight != null)
+          .sort((a, b) => (b[1].weight || 0) - (a[1].weight || 0));
+        if (weighted.length) {
+          weightsHost.innerHTML = weighted.map(([name, info]) => {
+            const w = Number(info.weight || 1.0).toFixed(1);
+            const pretty = PRETTY[name] || name.charAt(0).toUpperCase() + name.slice(1);
+            return `<div class="weight-row"><span class="weight-name">${pretty}</span><span class="weight-val">${w}×</span></div>`;
+          }).join('');
+        } else {
+          weightsHost.innerHTML = '<p class="provider-health-empty">No weight data.</p>';
+        }
+      }
 
       if (!entries.length) {
         host.innerHTML = '<p class="provider-health-empty">No provider health data.</p>';
