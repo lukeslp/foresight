@@ -49,6 +49,10 @@ class PredictionWorker:
         self.scheduler_lock_acquired: bool = False
         self.heartbeat_path = config.get('WORKER_HEARTBEAT_PATH', '/tmp/foresight.worker.heartbeat')
         self.heartbeat_max_age_seconds = max(15, int(config.get('WORKER_HEARTBEAT_MAX_AGE_SECONDS', 120)))
+        self.provider_health_cooldown_seconds = max(
+            0,
+            int(config.get('PROVIDER_HEALTH_COOLDOWN_SECONDS', 3600))
+        )
 
         # Scheduling configuration
         self.market_tz = ZoneInfo(config.get('MARKET_TIMEZONE', 'America/New_York'))
@@ -241,6 +245,32 @@ class PredictionWorker:
                 )
         except Exception as e:
             logger.error(f'Failed to recover interrupted cycles: {e}', exc_info=True)
+
+    @staticmethod
+    def _seconds_since_timestamp(raw_timestamp: Optional[str]) -> Optional[float]:
+        """Return age in seconds for an ISO/SQLite timestamp string."""
+        if not raw_timestamp:
+            return None
+
+        text = str(raw_timestamp).strip()
+        parsed: Optional[datetime] = None
+        try:
+            parsed = datetime.fromisoformat(text.replace('Z', '+00:00'))
+        except Exception:
+            for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                try:
+                    parsed = datetime.strptime(text, fmt)
+                    break
+                except Exception:
+                    continue
+        if parsed is None:
+            return None
+
+        if parsed.tzinfo is not None:
+            now = datetime.now(parsed.tzinfo)
+        else:
+            now = datetime.now()
+        return max(0.0, (now - parsed).total_seconds())
 
     def _run_worker(self):
         """Main worker loop with market-aware scheduling."""
@@ -651,8 +681,15 @@ class PredictionWorker:
             state = runtime_status.get(provider_name, {})
             if not state:
                 continue
+            healthy = bool(state.get('healthy', True))
             error_text = str(state.get('last_error') or '')
-            if (not state.get('healthy', True)) and self._should_block_provider(error_text):
+            failed_age_seconds = self._seconds_since_timestamp(state.get('last_failed_at'))
+            failed_recently = (
+                failed_age_seconds is not None and
+                failed_age_seconds <= self.provider_health_cooldown_seconds
+            )
+            hard_failure = self._should_block_provider(error_text)
+            if (not healthy) and (hard_failure or failed_recently):
                 blocklist.add(provider_name)
         return blocklist
 

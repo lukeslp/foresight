@@ -2,7 +2,7 @@
 Worker scheduling tests
 """
 import pytest
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from app import worker as worker_module
@@ -445,12 +445,12 @@ def test_bootstrap_cycle_blocklist_from_runtime(monkeypatch):
                 'cohere': {
                     'healthy': False,
                     'last_error': 'status_code: 429 trial key limit reached',
-                    'last_failed_at': '2026-02-18T18:31:41'
+                    'last_failed_at': datetime.now().isoformat()
                 },
                 'gemini': {
                     'healthy': False,
                     'last_error': 'socket timeout',
-                    'last_failed_at': '2026-02-18T18:31:42'
+                    'last_failed_at': (datetime.now() - timedelta(days=2)).isoformat()
                 },
                 'xai': {
                     'healthy': True,

@@ -6,6 +6,8 @@ import sys
 import os
 from pathlib import Path
 import fcntl
+import time
+import threading
 
 # Add shared library to path
 if '/home/coolhand/shared' not in sys.path:
@@ -40,6 +42,26 @@ def _try_acquire_worker_lock(lock_path: str = '/tmp/foresight.worker.lock') -> b
     except BlockingIOError:
         os.close(fd)
         return False
+
+
+def _retry_start_worker(worker, logger, retry_seconds: int = 5):
+    """
+    Retry lock acquisition in the background so a fresh process can
+    take over scheduling after the previous worker exits.
+    """
+    def _attempt():
+        while True:
+            if worker.is_alive():
+                return
+            if _try_acquire_worker_lock():
+                worker.scheduler_lock_acquired = True
+                worker.start()
+                logger.info('Background prediction worker started after lock retry')
+                return
+            time.sleep(max(1, retry_seconds))
+
+    retry_thread = threading.Thread(target=_attempt, daemon=True, name='WorkerLockRetry')
+    retry_thread.start()
 
 
 def create_app(config_class=Config):
@@ -83,6 +105,7 @@ def create_app(config_class=Config):
             app.logger.info('Background prediction worker started')
         else:
             app.logger.info('Background worker lock held by another process; skipping worker start')
+            _retry_start_worker(_worker, app.logger)
     else:
         _worker.scheduler_lock_acquired = False
         app.logger.info('Background prediction worker disabled for testing')

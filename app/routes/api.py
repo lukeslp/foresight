@@ -273,6 +273,7 @@ def worker_status():
             'market_open_interval_seconds': current_app.config['MARKET_OPEN_INTERVAL_SECONDS'],
             'worker_heartbeat_path': current_app.config['WORKER_HEARTBEAT_PATH'],
             'worker_heartbeat_max_age_seconds': current_app.config['WORKER_HEARTBEAT_MAX_AGE_SECONDS'],
+            'provider_health_cooldown_seconds': current_app.config['PROVIDER_HEALTH_COOLDOWN_SECONDS'],
             'overnight_check_times': current_app.config['OVERNIGHT_CHECK_TIMES'],
             'overnight_lookahead_hours': current_app.config['OVERNIGHT_LOOKAHEAD_HOURS'],
             'overnight_light_mode': current_app.config['OVERNIGHT_LIGHT_MODE'],
