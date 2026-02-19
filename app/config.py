@@ -45,14 +45,31 @@ class Config:
     OVERNIGHT_FULL_DEBATE_EVERY = int(os.environ.get('OVERNIGHT_FULL_DEBATE_EVERY', 3))
     OVERNIGHT_LIGHT_PROVIDER_ORDER = os.environ.get(
         'OVERNIGHT_LIGHT_PROVIDER_ORDER',
-        'xai,perplexity,mistral'
+        'anthropic,openai,gemini'  # Premium tier for light overnight runs
     )
 
-    # LLM Providers
-    PROVIDERS = {
-        'discovery': os.environ.get('DISCOVERY_PROVIDER', 'mistral'),      # Mistral for stock discovery
-        'prediction': os.environ.get('PREDICTION_PROVIDER', 'anthropic'), # Claude for technical analysis
-        'synthesis': os.environ.get('SYNTHESIS_PROVIDER', 'gemini')    # Gemini for debate/consensus
+    # LLM Provider Council — democracy, no fixed roles.
+    # All providers participate in every phase (discovery, analysis, synthesis).
+    # Order determines who speaks first in the debate round.
+    PROVIDER_ORDER = [p.strip() for p in os.environ.get(
+        'PROVIDER_ORDER',
+        'anthropic,openai,gemini,xai,perplexity,mistral,huggingface,cohere'
+    ).split(',') if p.strip()]
+
+    # Per-provider baseline vote weights. Override with PROVIDER_WEIGHT_<NAME>=<float>.
+    # Premium tier (claude/chatgpt/gemini) carry 1.5×; xai mid at 1.1×; rest lower.
+    PROVIDER_WEIGHTS = {
+        p: float(os.environ.get(f'PROVIDER_WEIGHT_{p.upper()}', default))
+        for p, default in {
+            'anthropic':   '1.5',
+            'openai':      '1.5',
+            'gemini':      '1.5',
+            'xai':         '1.1',
+            'perplexity':  '0.9',
+            'mistral':     '0.8',
+            'huggingface': '0.85',
+            'cohere':      '0.6',
+        }.items()
     }
 
     # Model overrides (optional). By default we use provider defaults because model IDs change often.
