@@ -97,6 +97,7 @@ Model overrides (set in `app/config.py`):
 | gemini | `gemini-2.0-flash` |
 | mistral | `mistral-large-latest` |
 | perplexity | `sonar` |
+| huggingface | `meta-llama/Llama-3.3-70B-Instruct` |
 
 ---
 
@@ -131,7 +132,7 @@ For each surviving symbol, providers are called by stage:
 |------|-----------|------|
 | Core | xAI, Gemini | fast low-cost first-pass analysis |
 | Join | Anthropic, OpenAI, Perplexity | deep reasoning and grounded context |
-| Side | Mistral, Cohere | additional diversity and dissent |
+| Side | Mistral, Cohere, HuggingFace (Llama) | additional diversity and dissent |
 
 Each analyst receives the ticker symbol, current price, and the last 10 closing prices. Each returns a JSON object with `prediction` (UP/DOWN/NEUTRAL), `confidence` (0.0–1.0), and `reasoning`.
 
