@@ -5,10 +5,12 @@ REST endpoints and SSE streaming for predictions
 from flask import Blueprint, jsonify, Response, current_app, request
 from app.database import get_db
 import json
+import logging
 import time
 from datetime import datetime
 
 api_bp = Blueprint('api', __name__)
+logger = logging.getLogger(__name__)
 
 
 @api_bp.route('/current')
@@ -224,12 +226,11 @@ def stream():
                 time.sleep(1)
 
             except GeneratorExit:
-                # Client disconnected
-                current_app.logger.info('SSE client disconnected')
+                logger.info('SSE client disconnected')
                 break
 
             except Exception as e:
-                current_app.logger.error(f'SSE stream error: {e}')
+                logger.error(f'SSE stream error: {e}')
                 # Send error event
                 error_data = {
                     'type': 'error',
