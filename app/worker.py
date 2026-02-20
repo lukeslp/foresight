@@ -776,6 +776,9 @@ class PredictionWorker:
             # Phase 5: Evaluate any predictions whose target window has passed
             self._evaluate_pending_predictions(db)
 
+            # Phase 6: Roll up accuracy stats for analytics
+            self._rollup_accuracy_stats(db)
+
         except Exception as e:
             logger.error(f'Error in prediction cycle: {e}', exc_info=True)
             if self.current_cycle_id:
@@ -834,6 +837,43 @@ class PredictionWorker:
                     )
         except Exception as e:
             logger.error(f'Error evaluating pending predictions: {e}', exc_info=True)
+
+    def _rollup_accuracy_stats(self, db: ConsensusDB) -> None:
+        """Roll up accuracy statistics into the accuracy_stats table for analytics."""
+        try:
+            timeframes = ['1h', '6h', '24h', '7d', '30d']
+            leaderboard = db.get_provider_leaderboard()
+            providers = [p['provider'] for p in leaderboard if p.get('provider')]
+
+            for provider in providers:
+                for tf in timeframes:
+                    stats = db.calculate_accuracy_stats(provider=provider, timeframe=tf)
+                    if stats['total_predictions'] > 0:
+                        db.add_accuracy_stats(
+                            provider=provider,
+                            timeframe=tf,
+                            total_predictions=stats['total_predictions'],
+                            correct_predictions=stats['correct_predictions'],
+                            avg_confidence=stats['avg_confidence'],
+                            metadata={'accuracy_rate': stats['accuracy_rate']}
+                        )
+
+            # Also roll up overall (no provider filter)
+            for tf in timeframes:
+                stats = db.calculate_accuracy_stats(provider=None, timeframe=tf)
+                if stats['total_predictions'] > 0:
+                    db.add_accuracy_stats(
+                        provider='_overall',
+                        timeframe=tf,
+                        total_predictions=stats['total_predictions'],
+                        correct_predictions=stats['correct_predictions'],
+                        avg_confidence=stats['avg_confidence'],
+                        metadata={'accuracy_rate': stats['accuracy_rate']}
+                    )
+
+            logger.info(f'Rolled up accuracy stats for {len(providers)} providers across {len(timeframes)} timeframes')
+        except Exception as e:
+            logger.error(f'Error rolling up accuracy stats: {e}', exc_info=True)
 
     def _discover_stocks(
         self,
