@@ -219,6 +219,7 @@ class ConsensusDB:
             "CREATE INDEX IF NOT EXISTS idx_accuracy_provider ON accuracy_stats(provider)",
             "CREATE INDEX IF NOT EXISTS idx_accuracy_timeframe ON accuracy_stats(timeframe)",
             "CREATE INDEX IF NOT EXISTS idx_accuracy_calculated ON accuracy_stats(calculated_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_accuracy_provider_timeframe ON accuracy_stats(provider, timeframe, calculated_at DESC)",
 
             # Agent votes
             "CREATE INDEX IF NOT EXISTS idx_agent_votes_cycle ON agent_votes(cycle_id)",
@@ -999,6 +1000,155 @@ class ConsensusDB:
                 (cutoff_datetime,)
             )
             return cursor.rowcount
+
+    # ========== Analytics Query Methods ==========
+
+    def get_accuracy_trends(
+        self,
+        provider: str = None,
+        timeframe: str = '24h',
+        limit: int = 30
+    ) -> List[Dict[str, Any]]:
+        """Get historical accuracy_stats rows for sparkline/trend charts."""
+        with self.get_connection() as conn:
+            if provider:
+                rows = conn.execute("""
+                    SELECT * FROM accuracy_stats
+                    WHERE provider = ? AND timeframe = ?
+                    ORDER BY calculated_at DESC
+                    LIMIT ?
+                """, (provider, timeframe, limit)).fetchall()
+            else:
+                rows = conn.execute("""
+                    SELECT * FROM accuracy_stats
+                    WHERE timeframe = ?
+                    ORDER BY calculated_at DESC
+                    LIMIT ?
+                """, (timeframe, limit)).fetchall()
+            results = []
+            for row in rows:
+                result = dict(row)
+                if result.get('metadata'):
+                    result['metadata'] = json.loads(result['metadata'])
+                results.append(result)
+            return results
+
+    def get_per_stock_accuracy(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get per-stock accuracy by joining predictions + stocks."""
+        with self.get_connection() as conn:
+            rows = conn.execute("""
+                SELECT
+                    s.ticker,
+                    s.name,
+                    s.metadata as stock_metadata,
+                    COUNT(*) as total_predictions,
+                    SUM(CASE WHEN p.accuracy = 1.0 THEN 1 ELSE 0 END) as correct_predictions,
+                    AVG(p.accuracy) as accuracy_rate,
+                    AVG(p.confidence) as avg_confidence
+                FROM predictions p
+                JOIN stocks s ON p.stock_id = s.id
+                WHERE p.evaluated_at IS NOT NULL
+                GROUP BY s.id
+                ORDER BY total_predictions DESC
+                LIMIT ?
+            """, (limit,)).fetchall()
+            results = []
+            for row in rows:
+                result = dict(row)
+                if result.get('stock_metadata'):
+                    try:
+                        result['stock_metadata'] = json.loads(result['stock_metadata'])
+                    except (json.JSONDecodeError, TypeError):
+                        result['stock_metadata'] = {}
+                results.append(result)
+            return results
+
+    def get_returns_simulation(self, since: str = None) -> List[Dict[str, Any]]:
+        """Get all evaluated consensus predictions with prices for PnL calculation."""
+        with self.get_connection() as conn:
+            query = """
+                SELECT
+                    p.id, p.prediction_time, p.evaluated_at,
+                    p.predicted_direction, p.confidence,
+                    p.initial_price, p.actual_price, p.accuracy,
+                    p.provider, s.ticker, s.name
+                FROM predictions p
+                JOIN stocks s ON p.stock_id = s.id
+                WHERE p.evaluated_at IS NOT NULL
+                  AND p.initial_price > 0
+                  AND p.actual_price IS NOT NULL
+                  AND p.provider LIKE '%-consensus'
+            """
+            params = []
+            if since:
+                query += " AND p.evaluated_at >= ?"
+                params.append(since)
+            query += " ORDER BY p.evaluated_at ASC"
+            rows = conn.execute(query, params).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_predictions_by_date_range(
+        self,
+        start: str = None,
+        end: str = None,
+        provider: str = None,
+        ticker: str = None
+    ) -> List[Dict[str, Any]]:
+        """Get filtered predictions for export."""
+        with self.get_connection() as conn:
+            query = """
+                SELECT
+                    p.*, s.ticker, s.name
+                FROM predictions p
+                JOIN stocks s ON p.stock_id = s.id
+                WHERE 1=1
+            """
+            params = []
+            if start:
+                query += " AND p.prediction_time >= ?"
+                params.append(start)
+            if end:
+                query += " AND p.prediction_time <= ?"
+                params.append(end)
+            if provider:
+                query += " AND p.provider = ?"
+                params.append(provider)
+            if ticker:
+                query += " AND s.ticker = ?"
+                params.append(ticker.upper())
+            query += " ORDER BY p.prediction_time DESC LIMIT 10000"
+            rows = conn.execute(query, params).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_equity_vs_crypto_accuracy(self) -> Dict[str, Any]:
+        """Get accuracy split by asset type (equity vs crypto)."""
+        with self.get_connection() as conn:
+            rows = conn.execute("""
+                SELECT
+                    CASE
+                        WHEN s.ticker LIKE '%-USD' THEN 'crypto'
+                        ELSE 'equity'
+                    END as asset_type,
+                    COUNT(*) as total_predictions,
+                    SUM(CASE WHEN p.accuracy = 1.0 THEN 1 ELSE 0 END) as correct_predictions,
+                    AVG(p.accuracy) as accuracy_rate,
+                    AVG(p.confidence) as avg_confidence
+                FROM predictions p
+                JOIN stocks s ON p.stock_id = s.id
+                WHERE p.evaluated_at IS NOT NULL
+                  AND s.ticker NOT LIKE 'MARKET-%'
+                GROUP BY asset_type
+            """).fetchall()
+            result = {}
+            for row in rows:
+                r = dict(row)
+                result[r['asset_type']] = {
+                    'total_predictions': r['total_predictions'],
+                    'correct_predictions': r['correct_predictions'],
+                    'accuracy_rate': r['accuracy_rate'],
+                    'avg_confidence': r['avg_confidence'],
+                }
+            return result
 
     # ========== Utility Methods ==========
 
