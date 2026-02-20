@@ -33,6 +33,9 @@
   let feedMessages = [];
   let useWatchlistMode = false;
   let refreshInterval = null;
+  let lastUpdateTime = null;
+  let freshnessInterval = null;
+  let keyboardFocusIndex = -1;
 
   // ── DOM refs ───────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -183,16 +186,25 @@
         renderTable();
         if (watchlistData.cycle) {
           updatePhaseFromCycle(watchlistData.cycle);
+          updateCycleProgress(watchlistData.cycle);
         }
       } else if (current) {
         useWatchlistMode = false;
         renderPredictions(current);
       }
 
-      if (current) { renderMarketDirection(current); updateFeedFromData(current); }
+      if (current) {
+        renderMarketDirection(current);
+        updateFeedFromData(current);
+        if (current.cycle) updateCycleProgress(current.cycle);
+      }
       if (stats)   { renderStats(stats); renderAccuracy(stats); }
       if (health)  { renderProviders(health); }
       if (history) { renderCycles(history); }
+
+      // Update freshness timestamp
+      lastUpdateTime = Date.now();
+      updateFreshness();
 
       // Update cycle controls from current data
       if (current && current.cycle) {
