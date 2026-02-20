@@ -100,6 +100,29 @@ def watchlist():
     all_stocks = db.get_all_stocks()
     stock_info = {s['ticker'].upper(): s for s in all_stocks}
 
+    # Build vote_totals lookup from debate_rounds (latest round per stock)
+    votes_by_stock_id = {}
+    if cycle:
+        with db.get_connection() as conn:
+            rows = conn.execute("""
+                SELECT dr.stock_id, dr.vote_totals, dr.round_type,
+                       dr.winning_direction, dr.winning_confidence, dr.participant_count
+                FROM debate_rounds dr
+                INNER JOIN (
+                    SELECT stock_id, MAX(id) as max_id
+                    FROM debate_rounds
+                    WHERE cycle_id = ?
+                    GROUP BY stock_id
+                ) latest ON dr.id = latest.max_id
+            """, (cycle['id'],)).fetchall()
+            for row in rows:
+                r = dict(row)
+                vt = r.get('vote_totals')
+                if vt:
+                    import json
+                    r['vote_totals'] = json.loads(vt)
+                votes_by_stock_id[r['stock_id']] = r
+
     # Merge watchlist with predictions
     items = []
     seen = set()
@@ -111,6 +134,8 @@ def watchlist():
         pred = pred_by_ticker.get(key)
         info = stock_info.get(key, {})
         is_crypto = key.endswith('-USD') or key.startswith('MARKET-CRYPTO')
+        stock_id = info.get('id')
+        vote_data = votes_by_stock_id.get(stock_id, {}) if stock_id else {}
         item = {
             'ticker': key,
             'name': info.get('name', ''),
@@ -125,6 +150,8 @@ def watchlist():
             'times_predicted': info.get('times_predicted', 0),
             'avg_accuracy': info.get('avg_accuracy'),
             'has_prediction': pred is not None,
+            'vote_totals': vote_data.get('vote_totals'),
+            'participant_count': vote_data.get('participant_count'),
         }
         items.append(item)
 
