@@ -74,7 +74,7 @@ class OllamaProvider(BaseLLMProvider):
     def _check_availability(self) -> bool:
         """Check if Ollama server is available."""
         try:
-            response = requests.get(f"{self.host}/api/tags", timeout=5)
+            response = requests.get(f"{self.host}/api/tags", headers=self._auth_headers, timeout=10)
             return response.status_code == 200
         except Exception as e:
             logger.debug(f"Ollama server not available: {str(e)}")
@@ -89,7 +89,7 @@ class OllamaProvider(BaseLLMProvider):
         """
         models = []
         try:
-            response = requests.get(f"{self.host}/api/tags", timeout=5)
+            response = requests.get(f"{self.host}/api/tags", headers=self._auth_headers, timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 for model in data.get("models", []):
@@ -127,7 +127,8 @@ class OllamaProvider(BaseLLMProvider):
             response = requests.post(
                 f"{self.host}/api/show",
                 json={"name": model_name},
-                timeout=5
+                headers=self._auth_headers,
+                timeout=10
             )
             if response.status_code == 200:
                 return response.json()
