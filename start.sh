@@ -22,6 +22,8 @@ done
 export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 export FLASK_ENV=production
 
-# Enforce non-deprecated Anthropic model for this service runtime.
+# Ollama Cloud (api.ollama.com) for GLM-5
+export OLLAMA_HOST="${OLLAMA_HOST:-https://api.ollama.com}"
+export OLLAMA_API_KEY="${OLLAMA_API_KEY:-bb20c960f10344ebac528c47dccff708.DcS_uuCo5z1LyTeau-ZnUHEf}"
 
 gunicorn -w 2 -b 0.0.0.0:5062 --timeout 120 --worker-class=gthread --threads=4 'run:app'
