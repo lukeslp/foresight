@@ -12,14 +12,15 @@
   })();
 
   const PROVIDER_MODELS = {
-    anthropic:   { name: 'Anthropic',   model: 'claude-sonnet-4-6' },
-    openai:      { name: 'OpenAI',      model: 'gpt-5.2' },
+    anthropic:   { name: 'Anthropic',   model: 'claude-haiku-4-5' },
+    openai:      { name: 'OpenAI',      model: 'gpt-5-mini' },
     gemini:      { name: 'Gemini',      model: 'gemini-2.5-flash' },
-    xai:         { name: 'xAI',         model: 'grok-4-1-fast-reasoning' },
-    perplexity:  { name: 'Perplexity',  model: 'sonar-pro' },
-    mistral:     { name: 'Mistral',     model: 'mistral-large-latest' },
-    cohere:      { name: 'Cohere',      model: 'command-a-03-2025' },
+    xai:         { name: 'xAI',         model: 'grok-4-1-fast' },
+    perplexity:  { name: 'Perplexity',  model: 'sonar' },
+    mistral:     { name: 'Mistral',     model: 'mistral-small' },
+    cohere:      { name: 'Cohere',      model: 'command-r' },
     huggingface: { name: 'HuggingFace', model: 'Llama-3.3-70B' },
+    ollama:      { name: 'Ollama',      model: 'glm-5' },
   };
 
   // ── State ──────────────────────────────────────────────────
@@ -31,6 +32,7 @@
   let sseSource = null;
   let feedMessages = [];
   let useWatchlistMode = false;
+  let refreshInterval = null;
 
   // ── DOM refs ───────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -150,11 +152,14 @@
 
   // ── Initialization ─────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
+    loadSettings();
     loadAll();
     initSSE();
     bindEvents();
+    bindSettings();
+    bindHelp();
     // Refresh data every 30s
-    setInterval(loadAll, 30000);
+    refreshInterval = setInterval(loadAll, 30000);
   });
 
   async function loadAll() {
@@ -401,6 +406,17 @@
       const name = truncate(p.name || '', 30);
       const isPending = !hasPred;
 
+      // Vote split mini bar
+      const vt = p.vote_totals || {};
+      const vtTotal = (vt.up || 0) + (vt.down || 0) + (vt.neutral || 0);
+      const voteSplitHtml = vtTotal > 0
+        ? `<div class="vote-split" data-tip="${(vt.up||0).toFixed(1)} up · ${(vt.down||0).toFixed(1)} down · ${(vt.neutral||0).toFixed(1)} hold">
+             <div class="vote-split-seg up" style="width:${Math.round((vt.up||0)/vtTotal*100)}%"></div>
+             <div class="vote-split-seg down" style="width:${Math.round((vt.down||0)/vtTotal*100)}%"></div>
+             <div class="vote-split-seg neutral" style="width:${Math.round((vt.neutral||0)/vtTotal*100)}%"></div>
+           </div>`
+        : `<div class="conf-bar-bg"><div class="conf-bar-fill ${dir}" style="width:${confPct}%"></div></div>`;
+
       return `<tr data-ticker="${ticker}" class="${isPending ? 'pending-row' : ''}" onclick="window._openDetail('${ticker}')">
         <td class="col-ticker">
           <div class="ticker-cell">
@@ -412,7 +428,7 @@
         <td class="col-direction"><span class="dir-badge ${dir}">${dirLabel(dir)}</span></td>
         <td class="col-confidence">
           <div class="conf-cell">
-            <div class="conf-bar-bg"><div class="conf-bar-fill ${dir}" style="width:${confPct}%"></div></div>
+            ${voteSplitHtml}
             <span class="conf-val">${hasPred ? confPct + '%' : '--'}</span>
           </div>
         </td>
@@ -795,6 +811,127 @@
         };
       default: // ticker
         return (a, b) => (a.ticker || '').localeCompare(b.ticker || '');
+    }
+  }
+
+  // ── Settings ────────────────────────────────────────────────
+  function loadSettings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('consensus-settings') || '{}');
+      // Font size
+      const size = saved.fontSize || 'md';
+      applyFontSize(size);
+      // Compact
+      if (saved.compact) {
+        document.body.classList.add('compact');
+        const el = $('#toggle-compact');
+        if (el) { el.classList.add('on'); el.setAttribute('aria-checked', 'true'); }
+      }
+      // Auto-refresh
+      if (saved.autoRefresh === false) {
+        const el = $('#toggle-refresh');
+        if (el) { el.classList.remove('on'); el.setAttribute('aria-checked', 'false'); }
+      }
+      // Help banner — show on first visit
+      if (!saved.helpDismissed) {
+        const banner = $('#help-banner');
+        if (banner) banner.classList.add('visible');
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function saveSettings() {
+    const sizeBtn = document.querySelector('.size-btn.active');
+    const settings = {
+      fontSize: sizeBtn ? sizeBtn.dataset.size : 'md',
+      compact: document.body.classList.contains('compact'),
+      autoRefresh: $('#toggle-refresh') ? $('#toggle-refresh').classList.contains('on') : true,
+      helpDismissed: !$('#help-banner').classList.contains('visible'),
+    };
+    localStorage.setItem('consensus-settings', JSON.stringify(settings));
+  }
+
+  function applyFontSize(size) {
+    document.documentElement.classList.remove('font-sm', 'font-lg');
+    if (size === 'sm') document.documentElement.classList.add('font-sm');
+    else if (size === 'lg') document.documentElement.classList.add('font-lg');
+    // Update active button
+    $$('.size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === size));
+  }
+
+  function bindSettings() {
+    const btn = $('#settings-btn');
+    const dropdown = $('#settings-dropdown');
+    if (!btn || !dropdown) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      btn.classList.toggle('active', dropdown.classList.contains('open'));
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && e.target !== btn) {
+        dropdown.classList.remove('open');
+        btn.classList.remove('active');
+      }
+    });
+
+    // Font size buttons
+    $$('.size-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        applyFontSize(b.dataset.size);
+        saveSettings();
+      });
+    });
+
+    // Compact toggle
+    const compact = $('#toggle-compact');
+    if (compact) {
+      compact.addEventListener('click', () => {
+        compact.classList.toggle('on');
+        const isOn = compact.classList.contains('on');
+        compact.setAttribute('aria-checked', String(isOn));
+        document.body.classList.toggle('compact', isOn);
+        saveSettings();
+      });
+    }
+
+    // Auto-refresh toggle
+    const refresh = $('#toggle-refresh');
+    if (refresh) {
+      refresh.addEventListener('click', () => {
+        refresh.classList.toggle('on');
+        const isOn = refresh.classList.contains('on');
+        refresh.setAttribute('aria-checked', String(isOn));
+        if (isOn) {
+          if (!refreshInterval) refreshInterval = setInterval(loadAll, 30000);
+        } else {
+          clearInterval(refreshInterval);
+          refreshInterval = null;
+        }
+        saveSettings();
+      });
+    }
+  }
+
+  function bindHelp() {
+    const btn = $('#help-btn');
+    const banner = $('#help-banner');
+    const dismiss = $('#help-dismiss');
+    if (!btn || !banner) return;
+
+    btn.addEventListener('click', () => {
+      banner.classList.toggle('visible');
+      saveSettings();
+    });
+
+    if (dismiss) {
+      dismiss.addEventListener('click', () => {
+        banner.classList.remove('visible');
+        saveSettings();
+      });
     }
   }
 

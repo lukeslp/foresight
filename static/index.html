@@ -13,7 +13,7 @@
   <!-- Market Direction Banner -->
   <header class="market-banner" id="market-banner">
     <div class="market-banner-inner">
-      <div class="market-indicator" id="market-crypto">
+      <div class="market-indicator" id="market-crypto" data-tip="Aggregate crypto market prediction based on all crypto assets" class="tip-left">
         <span class="market-label">CRYPTO</span>
         <span class="market-dir" id="crypto-direction">--</span>
         <span class="market-conf" id="crypto-confidence"></span>
@@ -22,7 +22,7 @@
         <h1 class="brand-name">CONSENSUS</h1>
         <span class="brand-sub">AI Consensus Terminal</span>
       </div>
-      <div class="market-indicator" id="market-equities">
+      <div class="market-indicator" id="market-equities" data-tip="Aggregate equities prediction based on all stock assets" class="tip-right">
         <span class="market-label">EQUITIES</span>
         <span class="market-dir" id="equities-direction">--</span>
         <span class="market-conf" id="equities-confidence"></span>
@@ -56,10 +56,36 @@
         </select>
       </div>
       <div class="cycle-controls">
-        <button id="run-cycle-btn" class="btn-action" title="Run Cycle">▶</button>
-        <button id="abort-cycle-btn" class="btn-action btn-danger" title="Abort" disabled>■</button>
+        <button id="run-cycle-btn" class="btn-action" title="Start a new prediction cycle">▶</button>
+        <button id="abort-cycle-btn" class="btn-action btn-danger" title="Stop the current cycle" disabled>■</button>
       </div>
-      <div class="conn-status" id="conn-status" title="Connection status">
+      <button class="help-btn" id="help-btn" title="How does this work?">?</button>
+      <div class="settings-wrap">
+        <button class="settings-btn" id="settings-btn" title="Display settings">⚙</button>
+        <div class="settings-dropdown" id="settings-dropdown">
+          <div class="settings-group">
+            <div class="settings-label">Font Size</div>
+            <div class="size-btns">
+              <button class="size-btn" data-size="sm">S</button>
+              <button class="size-btn active" data-size="md">M</button>
+              <button class="size-btn" data-size="lg">L</button>
+            </div>
+          </div>
+          <div class="settings-group">
+            <div class="toggle-row">
+              <span class="toggle-label">Compact</span>
+              <div class="toggle-switch" id="toggle-compact" role="switch" aria-checked="false" tabindex="0"></div>
+            </div>
+          </div>
+          <div class="settings-group">
+            <div class="toggle-row">
+              <span class="toggle-label">Auto-refresh</span>
+              <div class="toggle-switch on" id="toggle-refresh" role="switch" aria-checked="true" tabindex="0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="conn-status" id="conn-status" data-tip="Live data stream status">
         <span class="conn-dot"></span>
       </div>
     </div>
@@ -67,25 +93,49 @@
 
   <!-- Stats Strip -->
   <div class="stats-strip">
-    <div class="stat">
+    <div class="stat" data-tip="Overall accuracy across all evaluated predictions">
       <span class="stat-val" id="stat-accuracy">--</span>
       <span class="stat-key">Accuracy</span>
     </div>
-    <div class="stat">
+    <div class="stat" data-tip="Total predictions generated across all cycles">
       <span class="stat-val" id="stat-predictions">--</span>
       <span class="stat-key">Predictions</span>
     </div>
-    <div class="stat">
+    <div class="stat" data-tip="Number of completed prediction cycles">
       <span class="stat-val" id="stat-cycles">--</span>
       <span class="stat-key">Cycles</span>
     </div>
-    <div class="stat">
+    <div class="stat" data-tip="Number of assets being tracked (equities + crypto)">
       <span class="stat-val" id="stat-stocks">--</span>
       <span class="stat-key">Tracked</span>
     </div>
-    <div class="stat cycle-phase">
+    <div class="stat cycle-phase" data-tip="Current cycle phase: IDLE, DISCOVERING, ANALYZING, or DEBATING">
       <span class="stat-val" id="stat-phase">IDLE</span>
       <span class="stat-key">Phase</span>
+    </div>
+  </div>
+
+  <!-- How It Works Banner -->
+  <div class="help-banner" id="help-banner">
+    <button class="help-dismiss" id="help-dismiss">✕</button>
+    <div class="help-title">How Consensus Works</div>
+    <div class="help-steps">
+      <div class="help-step">
+        <span class="help-step-num">1</span>
+        <span class="help-step-text"><strong>Analyze</strong> &mdash; 9 language models independently analyze each asset using real-time market data</span>
+      </div>
+      <div class="help-step">
+        <span class="help-step-num">2</span>
+        <span class="help-step-text"><strong>Vote</strong> &mdash; Each model votes UP, DOWN, or HOLD with a confidence score</span>
+      </div>
+      <div class="help-step">
+        <span class="help-step-num">3</span>
+        <span class="help-step-text"><strong>Weight</strong> &mdash; Votes are weighted by each provider's historical accuracy</span>
+      </div>
+      <div class="help-step">
+        <span class="help-step-num">4</span>
+        <span class="help-step-text"><strong>Consensus</strong> &mdash; The council's weighted vote determines the final signal</span>
+      </div>
     </div>
   </div>
 
@@ -96,11 +146,11 @@
       <table class="stock-table" id="stock-table">
         <thead>
           <tr>
-            <th class="col-ticker">Ticker</th>
-            <th class="col-price">Price</th>
-            <th class="col-direction">Signal</th>
-            <th class="col-confidence">Conf</th>
-            <th class="col-provider">Source</th>
+            <th class="col-ticker" data-tip="Asset ticker symbol and name">Ticker</th>
+            <th class="col-price" data-tip="Current or entry price at time of prediction">Price</th>
+            <th class="col-direction" data-tip="Consensus direction: UP, DOWN, or HOLD">Signal</th>
+            <th class="col-confidence" data-tip="Vote split across all providers and confidence level">Conf</th>
+            <th class="col-provider" data-tip="The consensus method used for this prediction">Source</th>
           </tr>
         </thead>
         <tbody id="stock-tbody">
