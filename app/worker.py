@@ -1067,6 +1067,8 @@ class PredictionWorker:
             if provider_blocklist is None:
                 provider_blocklist = set()
 
+            # Build flat list of (stage_name, provider_name) tasks, skipping blocked
+            provider_tasks = []
             for stage_name, providers in provider_groups:
                 for provider_name in providers:
                     if provider_name in provider_blocklist:
@@ -1074,64 +1076,78 @@ class PredictionWorker:
                             f'[{symbol}] [{stage_name}] Skipping blocked provider {provider_name} for this cycle'
                         )
                         continue
-                    try:
+                    provider_tasks.append((stage_name, provider_name))
+
+            # Execute provider calls in parallel
+            max_workers = min(len(provider_tasks), self.config.get('MAX_CONCURRENT_PROVIDERS', 4))
+            provider_timeout = self.config.get('PROVIDER_TIMEOUT_SECONDS', 60)
+
+            if max_workers > 0:
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {}
+                    for stage_name, provider_name in provider_tasks:
                         logger.info(f'[{symbol}] [{stage_name}] Requesting analysis from {provider_name}')
-                        report = self.prediction_service.generate_prediction_swarm(
-                            symbol,
-                            stock_data,
-                            provider_name=provider_name
+                        future = executor.submit(
+                            self._call_provider_for_stock,
+                            provider_name, symbol, stock_data
                         )
-                        if not report:
-                            runtime = self.prediction_service.get_provider_runtime_status().get(provider_name, {})
-                            error_text = str(runtime.get('last_error') or '')
-                            should_block = (not runtime.get('healthy', True)) or self._should_block_provider(error_text)
-                            if should_block:
+                        futures[future] = (stage_name, provider_name)
+
+                    for future in as_completed(futures, timeout=provider_timeout * 2):
+                        stage_name, provider_name = futures[future]
+                        try:
+                            report = future.result(timeout=provider_timeout)
+                            if not report:
+                                runtime = self.prediction_service.get_provider_runtime_status().get(provider_name, {})
+                                error_text = str(runtime.get('last_error') or '')
+                                should_block = (not runtime.get('healthy', True)) or self._should_block_provider(error_text)
+                                if should_block:
+                                    provider_blocklist.add(provider_name)
+                                    logger.warning(
+                                        f'[{symbol}] [{stage_name}] Blocking provider {provider_name} '
+                                        f'for remaining cycle due to error: {error_text}'
+                                    )
+                                continue
+
+                            report['stage'] = stage_name
+                            analyst_reports.append(report)
+                            pred_id = db.add_prediction(
+                                cycle_id=cycle_id,
+                                stock_id=stock_id,
+                                provider=report['provider'],
+                                predicted_direction=report['prediction'],
+                                confidence=report['confidence'],
+                                initial_price=current_price,
+                                target_time=target_time,
+                                reasoning=f"[{stage_name}] {report['reasoning']}"
+                            )
+                            # Persist individual sub-agent votes to agent_votes table
+                            for subagent in report.get('subagents', []):
+                                try:
+                                    db.add_agent_vote(
+                                        cycle_id=cycle_id,
+                                        stock_id=stock_id,
+                                        provider=provider_name,
+                                        vote_direction=subagent.get('prediction', 'neutral'),
+                                        confidence=float(subagent.get('confidence', 0.5)),
+                                        phase='analysis',
+                                        agent_role=subagent.get('subagent', 'unknown'),
+                                        reasoning=subagent.get('reasoning', ''),
+                                        model=report.get('model', ''),
+                                        prediction_id=pred_id
+                                    )
+                                except Exception as vote_err:
+                                    logger.debug(f'Failed to persist sub-agent vote: {vote_err}')
+                        except Exception as e:
+                            if self._should_block_provider(str(e)):
                                 provider_blocklist.add(provider_name)
                                 logger.warning(
                                     f'[{symbol}] [{stage_name}] Blocking provider {provider_name} '
-                                    f'for remaining cycle due to error: {error_text}'
+                                    f'for remaining cycle due to exception: {e}'
                                 )
-                            continue
-
-                        report['stage'] = stage_name
-                        analyst_reports.append(report)
-                        pred_id = db.add_prediction(
-                            cycle_id=cycle_id,
-                            stock_id=stock_id,
-                            provider=report['provider'],
-                            predicted_direction=report['prediction'],
-                            confidence=report['confidence'],
-                            initial_price=current_price,
-                            target_time=target_time,
-                            reasoning=f"[{stage_name}] {report['reasoning']}"
-                        )
-                        # Persist individual sub-agent votes to agent_votes table
-                        for subagent in report.get('subagents', []):
-                            try:
-                                db.add_agent_vote(
-                                    cycle_id=cycle_id,
-                                    stock_id=stock_id,
-                                    provider=provider_name,
-                                    vote_direction=subagent.get('prediction', 'neutral'),
-                                    confidence=float(subagent.get('confidence', 0.5)),
-                                    phase='analysis',
-                                    agent_role=subagent.get('subagent', 'unknown'),
-                                    reasoning=subagent.get('reasoning', ''),
-                                    model=report.get('model', ''),
-                                    prediction_id=pred_id
-                                )
-                            except Exception as vote_err:
-                                logger.debug(f'Failed to persist sub-agent vote: {vote_err}')
-                    except Exception as e:
-                        if self._should_block_provider(str(e)):
-                            provider_blocklist.add(provider_name)
                             logger.warning(
-                                f'[{symbol}] [{stage_name}] Blocking provider {provider_name} '
-                                f'for remaining cycle due to exception: {e}'
+                                f'[{symbol}] [{stage_name}] Provider {provider_name} failed: {e}'
                             )
-                        logger.warning(
-                            f'[{symbol}] [{stage_name}] Provider {provider_name} failed: {e}'
-                        )
 
             # --- WEIGHTED COUNCIL VOTE + SYNTHESIS PHASE ---
             if analyst_reports:
