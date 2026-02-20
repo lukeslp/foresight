@@ -180,18 +180,17 @@ class Config:
         }.items()
     }
 
-    # Model overrides (optional). By default we use provider defaults because model IDs change often.
-    # Set env vars like MODEL_OVERRIDE_ANTHROPIC, MODEL_OVERRIDE_XAI, etc. to pin specific models.
+    # Model overrides — cost-optimized defaults using cheapest capable model per provider.
+    # Override with env vars like MODEL_OVERRIDE_ANTHROPIC, MODEL_OVERRIDE_XAI, etc.
     MODEL_OVERRIDES = {
         provider: model for provider, model in {
-            'xai': os.environ.get('MODEL_OVERRIDE_XAI'),
-            # Anthropic Sonnet 3.5 is deprecated; default to Sonnet 4 unless explicitly overridden.
-            'anthropic': os.environ.get('MODEL_OVERRIDE_ANTHROPIC', 'claude-sonnet-4-20250514'),
-            'gemini': os.environ.get('MODEL_OVERRIDE_GEMINI'),
-            'cohere': os.environ.get('MODEL_OVERRIDE_COHERE'),
-            'mistral': os.environ.get('MODEL_OVERRIDE_MISTRAL'),
-            'perplexity': os.environ.get('MODEL_OVERRIDE_PERPLEXITY'),
-            'openai': os.environ.get('MODEL_OVERRIDE_OPENAI'),
+            'xai': os.environ.get('MODEL_OVERRIDE_XAI'),  # default grok-4-1-fast already cheapest
+            'anthropic': os.environ.get('MODEL_OVERRIDE_ANTHROPIC', 'claude-haiku-4-5-20251001'),
+            'gemini': os.environ.get('MODEL_OVERRIDE_GEMINI'),  # default gemini-2.5-flash already cheap
+            'cohere': os.environ.get('MODEL_OVERRIDE_COHERE', 'command-r-08-2024'),
+            'mistral': os.environ.get('MODEL_OVERRIDE_MISTRAL', 'mistral-small-latest'),
+            'perplexity': os.environ.get('MODEL_OVERRIDE_PERPLEXITY', 'sonar'),
+            'openai': os.environ.get('MODEL_OVERRIDE_OPENAI', 'gpt-5-mini'),
             'huggingface': os.environ.get('MODEL_OVERRIDE_HUGGINGFACE', 'meta-llama/Llama-3.3-70B-Instruct'),
         }.items() if model
     }

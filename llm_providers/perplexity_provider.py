@@ -11,7 +11,7 @@ import base64
 class PerplexityProvider(BaseLLMProvider):
     """Perplexity search-augmented provider using OpenAI-compatible API."""
 
-    DEFAULT_MODEL = "sonar-pro"
+    DEFAULT_MODEL = "sonar"
 
     def __init__(self, api_key: str = None, model: str = None):
         api_key = api_key or os.getenv("PERPLEXITY_API_KEY")

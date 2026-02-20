@@ -10,7 +10,7 @@ import os
 class CohereProvider(BaseLLMProvider):
     """Cohere provider."""
 
-    DEFAULT_MODEL = "command-a-03-2025"
+    DEFAULT_MODEL = "command-r-08-2024"
 
     def __init__(self, api_key: str = None, model: str = None):
         api_key = api_key or os.getenv("COHERE_API_KEY")
