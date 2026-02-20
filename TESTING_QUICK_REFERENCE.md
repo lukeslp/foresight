@@ -54,7 +54,7 @@ Root:
 
 ```python
 # Database
-db                  # Fresh ForesightDB instance
+db                  # Fresh ConsensusDB instance
 sample_cycle        # Pre-created cycle
 sample_stock        # Pre-created stock (AAPL)
 sample_prediction   # Pre-created prediction

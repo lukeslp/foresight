@@ -23,9 +23,9 @@ function classifyProviderError(raw) {
   return { label: 'Error', linkText: 'Dashboard ↗' };
 }
 
-class ForesightDashboard {
+class ConsensusDashboard {
   constructor() {
-    this.api = new window.ForesightAPI(API_ROOT.replace(/\/$/, ''));
+    this.api = new window.ConsensusAPI(API_ROOT.replace(/\/$/, ''));
     this.grid = null;
     this.detail = null;
     this.sidebar = null;
@@ -599,12 +599,12 @@ class ForesightDashboard {
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    window.foresightDashboard = new ForesightDashboard();
+    window.consensusDashboard = new ConsensusDashboard();
   });
 } else {
-  window.foresightDashboard = new ForesightDashboard();
+  window.consensusDashboard = new ConsensusDashboard();
 }
 
 window.addEventListener('beforeunload', () => {
-  window.foresightDashboard?.destroy();
+  window.consensusDashboard?.destroy();
 });

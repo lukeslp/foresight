@@ -3,10 +3,10 @@
 ## Import and Initialize
 
 ```python
-from db import ForesightDB, get_db
+from db import ConsensusDB, get_db
 
 # New instance (for workers, scripts)
-db = ForesightDB('/path/to/foresight.db')
+db = ConsensusDB('/path/to/consensus.db')
 
 # Singleton (recommended)
 db = get_db()

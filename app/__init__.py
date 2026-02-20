@@ -1,5 +1,5 @@
 """
-Foresight - Stock Prediction Dashboard
+Consensus - Stock Prediction Dashboard
 Application factory pattern
 """
 import sys
@@ -29,7 +29,7 @@ _worker = None
 _worker_lock_fd = None
 
 
-def _try_acquire_worker_lock(lock_path: str = '/tmp/foresight.worker.lock') -> bool:
+def _try_acquire_worker_lock(lock_path: str = '/tmp/consensus.worker.lock') -> bool:
     """
     Acquire a non-blocking cross-process lock so only one Gunicorn worker
     starts the background prediction thread.
@@ -117,7 +117,7 @@ def create_app(config_class=Config):
     # Register shutdown handler
     atexit.register(lambda: shutdown_worker(_worker, app.logger))
 
-    app.logger.info(f'Foresight initialized on port {app.config["PORT"]}')
+    app.logger.info(f'Consensus initialized on port {app.config["PORT"]}')
 
     return app
 
@@ -141,7 +141,7 @@ def setup_logging(app):
     """Configure application logging"""
     if not app.debug:
         # File handler for production
-        log_file = Path(__file__).parent.parent / 'foresight.log'
+        log_file = Path(__file__).parent.parent / 'consensus.log'
         file_handler = RotatingFileHandler(
             log_file, maxBytes=10240000, backupCount=10
         )
@@ -152,7 +152,7 @@ def setup_logging(app):
         app.logger.addHandler(file_handler)
 
     app.logger.setLevel(logging.INFO)
-    app.logger.info('Foresight startup')
+    app.logger.info('Consensus startup')
 
 
 def get_worker():

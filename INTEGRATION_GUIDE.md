@@ -1,8 +1,8 @@
-# Foresight Database Integration Guide
+# Consensus Database Integration Guide
 
 ## What Was Implemented
 
-I've created a comprehensive SQLite database module (db.py) for Foresight with the following features:
+I've created a comprehensive SQLite database module (db.py) for Consensus with the following features:
 
 ### Database Module (db.py)
 
@@ -38,10 +38,10 @@ Replace the contents of `app/database.py` with:
 
 ```python
 """
-Database management for Foresight
+Database management for Consensus
 SQLite with WAL mode for concurrent access
 
-This module provides Flask integration for the ForesightDB class.
+This module provides Flask integration for the ConsensusDB class.
 The actual database implementation is in the root-level db.py module.
 """
 import sys
@@ -52,29 +52,29 @@ root_dir = Path(__file__).parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from db import ForesightDB
+from db import ConsensusDB
 from flask import g, current_app
 
 
 def get_db():
-    """Get ForesightDB instance from Flask g object"""
-    if 'foresight_db' not in g:
-        g.foresight_db = ForesightDB(current_app.config['DB_PATH'])
-    return g.foresight_db
+    """Get ConsensusDB instance from Flask g object"""
+    if 'consensus_db' not in g:
+        g.consensus_db = ConsensusDB(current_app.config['DB_PATH'])
+    return g.consensus_db
 
 
 def close_db(e=None):
     """Close database connection (cleanup if needed)"""
-    # ForesightDB uses context managers, no persistent connection to close
-    g.pop('foresight_db', None)
+    # ConsensusDB uses context managers, no persistent connection to close
+    g.pop('consensus_db', None)
 
 
 def init_db(app):
     """Initialize database schema"""
     with app.app_context():
         db = get_db()
-        # Schema is automatically initialized in ForesightDB.__init__
-        app.logger.info(f'ForesightDB initialized at {app.config["DB_PATH"]} with WAL mode enabled')
+        # Schema is automatically initialized in ConsensusDB.__init__
+        app.logger.info(f'ConsensusDB initialized at {app.config["DB_PATH"]} with WAL mode enabled')
 ```
 
 ### Option 2: Use db_bridge.py
@@ -83,24 +83,24 @@ If you want to keep the existing `app/database.py`, you can use `app/db_bridge.p
 
 1. Import from db_bridge in routes:
 ```python
-from app.db_bridge import get_foresight_db
+from app.db_bridge import get_consensus_db
 
 @api_bp.route('/current')
 def current():
-    db = get_foresight_db()
+    db = get_consensus_db()
     cycle = db.get_current_cycle()
     ...
 ```
 
 2. Register teardown in `app/__init__.py`:
 ```python
-from app.db_bridge import close_foresight_db
-app.teardown_appcontext(close_foresight_db)
+from app.db_bridge import close_consensus_db
+app.teardown_appcontext(close_consensus_db)
 ```
 
 ## Updated API Routes
 
-I've already updated `app/routes/api.py` to use the new ForesightDB methods:
+I've already updated `app/routes/api.py` to use the new ConsensusDB methods:
 
 - `/api/current` - Uses `get_current_cycle()`, `get_predictions_for_cycle()`
 - `/api/stats` - Uses `get_provider_leaderboard()`, `get_dashboard_summary()`
@@ -113,7 +113,7 @@ The cycle start/stop endpoints still need updating.
 
 1. **Back up your existing database** (if any):
    ```bash
-   cp foresight.db foresight.db.backup
+   cp consensus.db consensus.db.backup
    ```
 
 2. **Choose integration option** (see above)
@@ -238,7 +238,7 @@ If you have existing data in the old schema, you'll need to:
 1. Export old data:
    ```python
    import sqlite3
-   old_db = sqlite3.connect('foresight.db.backup')
+   old_db = sqlite3.connect('consensus.db.backup')
    # Export cycles, stocks, predictions...
    ```
 
@@ -257,7 +257,7 @@ db = get_db()
 cycle = db.execute('SELECT * FROM cycles WHERE status = ? LIMIT 1', ('running',)).fetchone()
 ```
 
-### New Way (ForesightDB API)
+### New Way (ConsensusDB API)
 ```python
 db = get_db()
 cycle = db.get_current_cycle()
@@ -290,7 +290,7 @@ Expected output:
 
 ## Next Steps
 
-1. **Worker Integration**: Use ForesightDB in prediction worker
+1. **Worker Integration**: Use ConsensusDB in prediction worker
    ```python
    from db import get_db  # Use singleton
 
@@ -325,19 +325,19 @@ Expected output:
 ## Troubleshooting
 
 ### Import Error: "No module named 'db'"
-- Check that db.py is in /home/coolhand/projects/foresight/
+- Check that db.py is in /home/coolhand/projects/consensus/
 - Verify sys.path includes the project root
 
 ### Database Locked Error
 - WAL mode should prevent this, but if it occurs:
   ```bash
-  sqlite3 foresight.db "PRAGMA journal_mode;"  # Should show "wal"
+  sqlite3 consensus.db "PRAGMA journal_mode;"  # Should show "wal"
   ```
 
 ### Schema Mismatch
 - Delete database and reinitialize:
   ```bash
-  rm foresight.db foresight.db-shm foresight.db-wal
+  rm consensus.db consensus.db-shm consensus.db-wal
   python run.py  # Will recreate with new schema
   ```
 
@@ -351,11 +351,11 @@ Expected output:
 
 ## Files Created
 
-- `/home/coolhand/projects/foresight/db.py` - Main database module (850 lines)
-- `/home/coolhand/projects/foresight/test_db.py` - Test suite (250 lines)
-- `/home/coolhand/projects/foresight/DATABASE.md` - Schema documentation
-- `/home/coolhand/projects/foresight/app/db_bridge.py` - Flask bridge (alternative)
-- `/home/coolhand/projects/foresight/INTEGRATION_GUIDE.md` - This file
+- `/home/coolhand/projects/consensus/db.py` - Main database module (850 lines)
+- `/home/coolhand/projects/consensus/test_db.py` - Test suite (250 lines)
+- `/home/coolhand/projects/consensus/DATABASE.md` - Schema documentation
+- `/home/coolhand/projects/consensus/app/db_bridge.py` - Flask bridge (alternative)
+- `/home/coolhand/projects/consensus/INTEGRATION_GUIDE.md` - This file
 
 ## Questions?
 

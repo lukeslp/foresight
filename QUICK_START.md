@@ -1,9 +1,9 @@
-## Foresight - Quick Start Guide
+## Consensus - Quick Start Guide
 
 ### Installation
 
 ```bash
-cd /home/coolhand/projects/foresight
+cd /home/coolhand/projects/consensus
 source venv/bin/activate
 
 # Core dependencies (required)
@@ -17,8 +17,8 @@ pip install openai anthropic google-generativeai
 
 ```bash
 # Option 1: Service manager (recommended for production)
-sm start foresight
-sm logs foresight -f
+sm start consensus
+sm logs consensus -f
 
 # Option 2: Manually with Gunicorn
 ./start.sh
@@ -27,7 +27,7 @@ sm logs foresight -f
 python run.py
 ```
 
-**Access**: http://localhost:5062 or https://dr.eamer.dev/foresight
+**Access**: http://localhost:5062 or https://dr.eamer.dev/consensus
 
 ### Quick Test
 
@@ -124,7 +124,7 @@ GEMINI_API_KEY=...
 
 ### Database
 
-**Location**: `foresight.db` (SQLite with WAL mode)
+**Location**: `consensus.db` (SQLite with WAL mode)
 
 **Schema**:
 - `cycles` - Prediction cycles
@@ -136,7 +136,7 @@ GEMINI_API_KEY=...
 
 **Backup**:
 ```bash
-sqlite3 foresight.db ".backup foresight_backup.db"
+sqlite3 consensus.db ".backup consensus_backup.db"
 ```
 
 ### Troubleshooting
@@ -144,7 +144,7 @@ sqlite3 foresight.db ".backup foresight_backup.db"
 **Worker not starting predictions**:
 - Check that LLM provider packages are installed
 - Verify API keys in environment
-- Check logs: `sm logs foresight -f`
+- Check logs: `sm logs consensus -f`
 
 **SSE events not streaming**:
 - Check that `/api/stream` endpoint is accessible
@@ -154,26 +154,26 @@ sqlite3 foresight.db ".backup foresight_backup.db"
 **Database locked errors**:
 ```bash
 # Check WAL mode is enabled
-sqlite3 foresight.db "PRAGMA journal_mode;"
+sqlite3 consensus.db "PRAGMA journal_mode;"
 # Should return: wal
 ```
 
 **Port already in use**:
 ```bash
 lsof -i :5062
-sm stop foresight
+sm stop consensus
 ```
 
 ### Service Manager Commands
 
 ```bash
-sm status foresight        # Check if running
-sm start foresight         # Start service
-sm stop foresight          # Stop service
-sm restart foresight       # Restart service
-sm logs foresight          # View logs
-sm logs foresight -f       # Follow logs
-sm health foresight        # Health check
+sm status consensus        # Check if running
+sm start consensus         # Start service
+sm stop consensus          # Stop service
+sm restart consensus       # Restart service
+sm logs consensus          # View logs
+sm logs consensus -f       # Follow logs
+sm health consensus        # Health check
 ```
 
 ### Next Steps
@@ -207,7 +207,7 @@ sm health foresight        # Health check
                   │
 ┌─────────────────▼───────────────────────────┐
 │  Caddy Reverse Proxy                        │
-│  /foresight/* → localhost:5062              │
+│  /consensus/* → localhost:5062              │
 └─────────────────┬───────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────┐
@@ -218,7 +218,7 @@ sm health foresight        # Health check
 └──────┬───────────────────────┬──────────────┘
        │                       │
 ┌──────▼──────┐       ┌────────▼─────────┐
-│  ForesightDB │       │ PredictionWorker │
+│  ConsensusDB │       │ PredictionWorker │
 │  (SQLite)    │       │ (Background)     │
 └──────────────┘       └────────┬─────────┘
                                 │
@@ -237,4 +237,4 @@ sm health foresight        # Health check
 
 - **Documentation**: `CLAUDE.md`, `DATABASE.md`, `IMPLEMENTATION_STATUS.md`
 - **Tests**: `test_integration.py`, `test_db.py`
-- **Logs**: `foresight.log` or `sm logs foresight`
+- **Logs**: `consensus.log` or `sm logs consensus`

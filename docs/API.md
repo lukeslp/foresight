@@ -1,13 +1,13 @@
-# Foresight API Documentation
+# Consensus API Documentation
 
 Version: 1.0.0
 
 ## Overview
 
-The Foresight API provides real-time stock prediction data using multi-provider language models. The system runs prediction cycles every 10 minutes, discovering trending stocks and generating predictions with confidence scores.
+The Consensus API provides real-time stock prediction data using multi-provider language models. The system runs prediction cycles every 10 minutes, discovering trending stocks and generating predictions with confidence scores.
 
 **Base URLs:**
-- Production: `https://dr.eamer.dev/foresight/api`
+- Production: `https://dr.eamer.dev/consensus/api`
 - Development: `http://localhost:5062/api`
 
 ## Authentication
@@ -438,7 +438,7 @@ Service health check endpoint.
 ```json
 {
   "status": "healthy",
-  "service": "foresight",
+  "service": "consensus",
   "version": "1.0.0",
   "timestamp": "2026-02-16T14:30:00Z",
   "components": {
@@ -458,7 +458,7 @@ Service health check endpoint.
 ```json
 {
   "status": "unhealthy",
-  "service": "foresight",
+  "service": "consensus",
   "version": "1.0.0",
   "timestamp": "2026-02-16T14:30:00Z",
   "components": {
@@ -704,7 +704,7 @@ async function getAllHistory() {
 ### Fetch Current Cycle
 
 ```javascript
-const response = await fetch('https://dr.eamer.dev/foresight/api/current');
+const response = await fetch('https://dr.eamer.dev/consensus/api/current');
 const cycle = await response.json();
 
 console.log(`Cycle #${cycle.cycle_number} - ${cycle.stocks.length} stocks`);
@@ -716,7 +716,7 @@ cycle.stocks.forEach(stock => {
 ### Monitor Live Updates
 
 ```javascript
-const eventSource = new EventSource('https://dr.eamer.dev/foresight/api/stream');
+const eventSource = new EventSource('https://dr.eamer.dev/consensus/api/stream');
 
 eventSource.addEventListener('cycle_start', (event) => {
   const data = JSON.parse(event.data);
@@ -732,7 +732,7 @@ eventSource.addEventListener('prediction', (event) => {
 ### Get Stock Performance
 
 ```javascript
-const response = await fetch('https://dr.eamer.dev/foresight/api/stock/AAPL?cycles=20');
+const response = await fetch('https://dr.eamer.dev/consensus/api/stock/AAPL?cycles=20');
 const stockData = await response.json();
 
 console.log(`${stockData.symbol} overall accuracy: ${(stockData.accuracy * 100).toFixed(1)}%`);
@@ -750,7 +750,7 @@ console.log(`Current win streak: ${currentStreak}`);
 ### View Statistics Dashboard
 
 ```javascript
-const response = await fetch('https://dr.eamer.dev/foresight/api/stats?timeframe=7d');
+const response = await fetch('https://dr.eamer.dev/consensus/api/stats?timeframe=7d');
 const stats = await response.json();
 
 console.log('Last 7 days:');
@@ -778,5 +778,5 @@ Import into tools like Swagger UI, Postman, or Insomnia for interactive document
 
 For issues or questions:
 - Email: luke@lukesteuber.com
-- GitHub: https://github.com/lukeslp/foresight
+- GitHub: https://github.com/lukeslp/consensus
 - Bluesky: @lukesteuber.com

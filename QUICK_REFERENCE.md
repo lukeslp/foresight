@@ -1,9 +1,9 @@
-# Foresight Quick Reference
+# Consensus Quick Reference
 
 ## Project Structure
 
 ```
-foresight/
+consensus/
 ├── app/
 │   ├── __init__.py              # Application factory
 │   ├── config.py                # Configuration classes
@@ -18,7 +18,7 @@ foresight/
 ├── static/                      # Frontend assets
 ├── run.py                       # Entry point
 ├── start.sh                     # Production startup
-└── foresight.db                 # SQLite database (WAL mode)
+└── consensus.db                 # SQLite database (WAL mode)
 ```
 
 ## Commands
@@ -31,10 +31,10 @@ python run.py
 ./start.sh
 
 # Service management
-sm start/stop/restart/logs foresight
+sm start/stop/restart/logs consensus
 
 # Database check
-sqlite3 foresight.db "PRAGMA journal_mode; .tables"
+sqlite3 consensus.db "PRAGMA journal_mode; .tables"
 ```
 
 ## API Endpoints

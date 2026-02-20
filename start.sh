@@ -1,5 +1,5 @@
 #!/bin/bash
-# Foresight - Stock Prediction Dashboard
+# Consensus - Stock Prediction Dashboard
 # Self-contained startup script
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Tuple, Set
 from datetime import date as date_cls, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from db import ForesightDB
+from db import ConsensusDB
 from .services.stock_service import StockService
 from .services.prediction_service import PredictionService
 
@@ -48,7 +48,7 @@ class PredictionWorker:
         self.next_scheduled_run: Optional[datetime] = None
         self.next_scheduled_reason: Optional[str] = None
         self.scheduler_lock_acquired: bool = False
-        self.heartbeat_path = config.get('WORKER_HEARTBEAT_PATH', '/tmp/foresight.worker.heartbeat')
+        self.heartbeat_path = config.get('WORKER_HEARTBEAT_PATH', '/tmp/consensus.worker.heartbeat')
         self.heartbeat_max_age_seconds = max(15, int(config.get('WORKER_HEARTBEAT_MAX_AGE_SECONDS', 120)))
         self.provider_health_cooldown_seconds = max(
             0,
@@ -229,7 +229,7 @@ class PredictionWorker:
         Mark any leftover active cycles as failed on scheduler startup.
         Active cycles cannot survive a process restart safely.
         """
-        db = ForesightDB(self.db_path)
+        db = ConsensusDB(self.db_path)
         try:
             with db.get_connection() as conn:
                 rows = conn.execute(
@@ -705,7 +705,7 @@ class PredictionWorker:
             cycle_id: Optional existing cycle ID to use
             run_reason: Optional scheduler reason label (market_open, overnight_*, manual, etc.)
         """
-        db = ForesightDB(self.db_path)
+        db = ConsensusDB(self.db_path)
 
         try:
             # Create new cycle if not provided
@@ -786,7 +786,7 @@ class PredictionWorker:
             self.last_cycle_time = time.time()
             self._write_heartbeat()
 
-    def _evaluate_pending_predictions(self, db: ForesightDB) -> None:
+    def _evaluate_pending_predictions(self, db: ConsensusDB) -> None:
         """Fetch actual prices and evaluate predictions whose target window has passed."""
         try:
             import yfinance as yf
@@ -836,7 +836,7 @@ class PredictionWorker:
 
     def _discover_stocks(
         self,
-        db: ForesightDB,
+        db: ConsensusDB,
         cycle_id: int,
         provider_order: Optional[List[str]] = None
     ) -> list:
@@ -938,7 +938,7 @@ class PredictionWorker:
             logger.error(f'Error discovering stocks: {e}', exc_info=True)
             return []
 
-    def _get_provider_weights(self, db: ForesightDB) -> Dict[str, float]:
+    def _get_provider_weights(self, db: ConsensusDB) -> Dict[str, float]:
         """
         Build provider weights using historical evaluated accuracy.
         """
@@ -958,7 +958,7 @@ class PredictionWorker:
 
     def _process_stock(
         self,
-        db: ForesightDB,
+        db: ConsensusDB,
         cycle_id: int,
         symbol: str,
         provider_groups: Optional[List[Tuple[str, List[str]]]] = None,
@@ -1242,7 +1242,7 @@ class PredictionWorker:
 
     def _predict_market_direction(
         self,
-        db: ForesightDB,
+        db: ConsensusDB,
         cycle_id: int,
         symbols: List[str],
         provider_order: Optional[List[str]] = None,
@@ -1318,7 +1318,7 @@ class PredictionWorker:
 
     def _generate_market_prediction(
         self,
-        db: ForesightDB,
+        db: ConsensusDB,
         cycle_id: int,
         market_type: str,
         predictions: List[Dict],

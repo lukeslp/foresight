@@ -1,1 +1,1 @@
-"""Business logic services for Foresight"""
+"""Business logic services for Consensus"""

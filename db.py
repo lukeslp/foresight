@@ -1,5 +1,5 @@
 """
-Foresight Database Module
+Consensus Database Module
 SQLite database with WAL mode, proper indexes, and foreign keys
 """
 import sqlite3
@@ -13,10 +13,10 @@ try:
     import settings
     DEFAULT_DB_PATH = settings.DB_PATH
 except ImportError:
-    DEFAULT_DB_PATH = 'foresight.db'
+    DEFAULT_DB_PATH = 'consensus.db'
 
 
-class ForesightDB:
+class ConsensusDB:
     """SQLite database manager for stock predictions"""
 
     def __init__(self, db_path: str = None):
@@ -1189,9 +1189,9 @@ class ForesightDB:
 # Singleton instance
 _db_instance = None
 
-def get_db() -> ForesightDB:
+def get_db() -> ConsensusDB:
     """Get singleton database instance"""
     global _db_instance
     if _db_instance is None:
-        _db_instance = ForesightDB()
+        _db_instance = ConsensusDB()
     return _db_instance

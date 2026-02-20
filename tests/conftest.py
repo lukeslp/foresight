@@ -16,7 +16,7 @@ sys.path.insert(0, str(project_root))
 
 # llm_providers is now bundled in the project root (added via project_root above)
 
-from db import ForesightDB
+from db import ConsensusDB
 from app import create_app
 from app.config import Config
 
@@ -26,7 +26,7 @@ class TestConfig(Config):
     TESTING = True
     DEBUG = True
     # Placeholder for database path, will be overridden in fixture
-    DB_PATH = 'test_foresight.db'
+    DB_PATH = 'test_consensus.db'
     # Disable SSE retry for faster tests
     SSE_RETRY = 100
 
@@ -50,8 +50,8 @@ def temp_db_file():
 
 @pytest.fixture
 def db(temp_db_file):
-    """Provide fresh ForesightDB instance for each test"""
-    database = ForesightDB(temp_db_file)
+    """Provide fresh ConsensusDB instance for each test"""
+    database = ConsensusDB(temp_db_file)
     
     # Clean up BEFORE test
     with database.get_connection() as conn:

@@ -20,7 +20,7 @@ def health():
     from app.database import get_db
 
     try:
-        # Check database connectivity using ForesightDB methods
+        # Check database connectivity using ConsensusDB methods
         db = get_db()
         # Try to get dashboard summary to verify DB is working
         db.get_dashboard_summary()
@@ -35,7 +35,7 @@ def health():
 
         return {
             'status': 'healthy',
-            'service': 'foresight',
+            'service': 'consensus',
             'database': 'connected',
             'worker': worker_status,
             'timestamp': datetime.now().isoformat()
@@ -45,7 +45,7 @@ def health():
         current_app.logger.error(f'Health check failed: {str(e)}')
         return {
             'status': 'unhealthy',
-            'service': 'foresight',
+            'service': 'consensus',
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }, 503

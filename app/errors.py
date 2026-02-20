@@ -1,5 +1,5 @@
 """
-Error handlers for Foresight
+Error handlers for Consensus
 Consistent JSON error responses
 """
 from flask import jsonify, current_app

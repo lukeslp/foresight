@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from app import worker as worker_module
-from db import ForesightDB
+from db import ConsensusDB
 
 
 class _DummyStockService:
@@ -24,7 +24,7 @@ def schedule_worker(monkeypatch):
     monkeypatch.setattr(worker_module, 'PredictionService', _DummyPredictionService)
 
     config = {
-        'DB_PATH': '/tmp/test_foresight_schedule.db',
+        'DB_PATH': '/tmp/test_consensus_schedule.db',
         'MARKET_TIMEZONE': 'America/New_York',
         'USE_NYSE_CALENDAR': True,
         'MARKET_OPEN_HOUR': 9,
@@ -197,7 +197,7 @@ def test_discovery_includes_configured_crypto(monkeypatch, tmp_path):
     }
 
     worker = worker_module.PredictionWorker(config)
-    db = ForesightDB(config['DB_PATH'])
+    db = ConsensusDB(config['DB_PATH'])
     cycle_id = db.create_cycle()
 
     symbols = worker._discover_stocks(db, cycle_id, provider_order=['xai'])
@@ -227,7 +227,7 @@ def test_recover_interrupted_cycles_marks_active_as_failed(monkeypatch, tmp_path
         'SCHEDULE_POLL_SECONDS': 20,
     }
 
-    db = ForesightDB(db_path)
+    db = ConsensusDB(db_path)
     first = db.create_cycle()
     second = db.create_cycle()
 
@@ -292,7 +292,7 @@ def test_process_stock_continues_after_provider_failure(monkeypatch):
     monkeypatch.setattr(worker_module, 'PredictionService', _PredictionServiceForProcess)
 
     config = {
-        'DB_PATH': '/tmp/test_foresight_process.db',
+        'DB_PATH': '/tmp/test_consensus_process.db',
         'MARKET_TIMEZONE': 'America/New_York',
         'USE_NYSE_CALENDAR': False,
         'MARKET_OPEN_HOUR': 9,
@@ -388,7 +388,7 @@ def test_cycle_blocklist_skips_rate_limited_provider(monkeypatch):
     monkeypatch.setattr(worker_module, 'PredictionService', _PredictionServiceForBlocklist)
 
     config = {
-        'DB_PATH': '/tmp/test_foresight_blocklist.db',
+        'DB_PATH': '/tmp/test_consensus_blocklist.db',
         'MARKET_TIMEZONE': 'America/New_York',
         'USE_NYSE_CALENDAR': False,
         'MARKET_OPEN_HOUR': 9,
@@ -463,7 +463,7 @@ def test_bootstrap_cycle_blocklist_from_runtime(monkeypatch):
     monkeypatch.setattr(worker_module, 'PredictionService', _PredictionServiceForBootstrap)
 
     config = {
-        'DB_PATH': '/tmp/test_foresight_bootstrap_blocklist.db',
+        'DB_PATH': '/tmp/test_consensus_bootstrap_blocklist.db',
         'MARKET_TIMEZONE': 'America/New_York',
         'USE_NYSE_CALENDAR': False,
         'MARKET_OPEN_HOUR': 9,

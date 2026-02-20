@@ -1,7 +1,7 @@
 # Swarm Democracy Plan
 
 ## Objective
-Run Foresight as a full multi-provider democracy across every stage, with no single model owning discovery, analysis, synthesis, or decisioning.
+Run Consensus as a full multi-provider democracy across every stage, with no single model owning discovery, analysis, synthesis, or decisioning.
 
 ## Stage Design
 1. Discovery Swarm

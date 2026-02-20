@@ -279,7 +279,7 @@ def stream():
     Uses cursor-based streaming (Last-Event-ID / id: N) so multiple browser
     tabs can watch simultaneously without competing for events.
     """
-    from db import ForesightDB
+    from db import ConsensusDB
 
     db_path = current_app.config['DB_PATH']
     sse_retry = current_app.config.get('SSE_RETRY', 3000)
@@ -291,7 +291,7 @@ def stream():
         last_event_id = 0
 
     def generate():
-        db = ForesightDB(db_path)
+        db = ConsensusDB(db_path)
 
         # New connections start from the current tail so they don't replay history.
         # Reconnecting tabs send Last-Event-ID and resume from where they left off.

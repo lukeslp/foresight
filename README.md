@@ -1,14 +1,14 @@
-# Foresight
+# Consensus
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square)
 ![Flask](https://img.shields.io/badge/flask-3.0%2B-lightgrey?style=flat-square)
 ![D3.js](https://img.shields.io/badge/d3.js-v7-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
-[![Live](https://img.shields.io/badge/live-dr.eamer.dev%2Fforesight-amber?style=flat-square)](https://dr.eamer.dev/foresight/)
+[![Live](https://img.shields.io/badge/live-dr.eamer.dev%2Fconsensus-amber?style=flat-square)](https://dr.eamer.dev/consensus/)
 
 A stock prediction terminal that runs a staged multi-provider swarm debate on a configurable cycle. Providers debate at discovery, analysis, council voting, and synthesis. Accuracy is measured against actual closing prices and tracked indefinitely.
 
-**Live:** https://dr.eamer.dev/foresight/
+**Live:** https://dr.eamer.dev/consensus/
 
 ---
 
@@ -29,8 +29,8 @@ A stock prediction terminal that runs a staged multi-provider swarm debate on a 
 
 ```bash
 # Clone and set up
-git clone https://github.com/lukeslp/foresight.git
-cd foresight
+git clone https://github.com/lukeslp/consensus.git
+cd consensus
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -54,9 +54,9 @@ Open http://localhost:5062 in a browser.
 ### Production (service manager)
 
 ```bash
-sm start foresight-api
+sm start consensus-api
 sm status
-sm logs foresight-api
+sm logs consensus-api
 ```
 
 ---
@@ -68,7 +68,7 @@ All settings are environment variables with sensible defaults.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `5062` | Server port |
-| `DB_PATH` | `foresight.db` | SQLite database file |
+| `DB_PATH` | `consensus.db` | SQLite database file |
 | `MARKET_TIMEZONE` | `America/New_York` | Market schedule timezone |
 | `USE_NYSE_CALENDAR` | `true` | Enable NYSE trading-day logic (holidays + early closes) |
 | `MARKET_OPEN_INTERVAL_SECONDS` | `1800` | Run cadence while market is open (30 minutes) |
@@ -151,7 +151,7 @@ The cycle is then marked `completed` and a `cycle_complete` SSE event is broadca
 ## Architecture
 
 ```
-foresight/
+consensus/
 ├── llm_providers/               # Bundled LLM provider library (self-contained)
 │   ├── __init__.py              # Message, CompletionResponse, ProviderFactory
 │   ├── factory.py               # Provider registry and initialization
@@ -166,7 +166,7 @@ foresight/
 ├── app/
 │   ├── __init__.py              # Application factory, worker startup
 │   ├── config.py                # Environment-based configuration
-│   ├── database.py              # Flask integration for ForesightDB
+│   ├── database.py              # Flask integration for ConsensusDB
 │   ├── errors.py                # Error handlers
 │   ├── worker.py                # PredictionWorker daemon thread
 │   ├── routes/
@@ -184,14 +184,14 @@ foresight/
 │       ├── detail.js            # Stock detail price chart
 │       ├── sidebar.js           # Provider accuracy leaderboard (D3 SVG)
 │       └── api.js               # REST client (loaded, available for extension)
-├── db.py                        # ForesightDB — SQLite with WAL mode
+├── db.py                        # ConsensusDB — SQLite with WAL mode
 ├── run.py                       # Entry point
 └── start.sh                     # Production startup script
 ```
 
 ### Database Schema
 
-Six tables managed by `ForesightDB` in `db.py`:
+Six tables managed by `ConsensusDB` in `db.py`:
 
 | Table | Purpose |
 |-------|---------|
@@ -252,7 +252,7 @@ Key fixtures in `tests/conftest.py`:
 
 | Fixture | Purpose |
 |---------|---------|
-| `db` | Fresh `ForesightDB` with temp file, reset before each test |
+| `db` | Fresh `ConsensusDB` with temp file, reset before each test |
 | `mock_provider` | Mock with `.complete()` returning a canned UP/0.75 JSON response |
 | `mock_provider_factory` | Monkeypatches `ProviderFactory.get_provider` |
 | `mock_yfinance` | Monkeypatches `app.services.stock_service.yf` |

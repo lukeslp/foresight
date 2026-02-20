@@ -1,8 +1,8 @@
-# Foresight API Quick Reference
+# Consensus API Quick Reference
 
 ## Base URL
 ```
-Production:  https://dr.eamer.dev/foresight/api
+Production:  https://dr.eamer.dev/consensus/api
 Development: http://localhost:5062/api
 ```
 
@@ -21,27 +21,27 @@ Development: http://localhost:5062/api
 
 ### Get Current Cycle
 ```bash
-curl https://dr.eamer.dev/foresight/api/current
+curl https://dr.eamer.dev/consensus/api/current
 ```
 
 ### Get Last 7 Days History
 ```bash
-curl https://dr.eamer.dev/foresight/api/history?page=1&limit=20&sort=desc
+curl https://dr.eamer.dev/consensus/api/history?page=1&limit=20&sort=desc
 ```
 
 ### Get Stock Detail
 ```bash
-curl https://dr.eamer.dev/foresight/api/stock/AAPL?cycles=10
+curl https://dr.eamer.dev/consensus/api/stock/AAPL?cycles=10
 ```
 
 ### Get Statistics
 ```bash
-curl https://dr.eamer.dev/foresight/api/stats?timeframe=7d
+curl https://dr.eamer.dev/consensus/api/stats?timeframe=7d
 ```
 
 ### Monitor Live Updates
 ```javascript
-const eventSource = new EventSource('https://dr.eamer.dev/foresight/api/stream');
+const eventSource = new EventSource('https://dr.eamer.dev/consensus/api/stream');
 eventSource.addEventListener('prediction', (e) => {
   const data = JSON.parse(e.data);
   console.log(`${data.symbol} → ${data.direction} (${data.confidence})`);
@@ -125,15 +125,15 @@ X-RateLimit-Reset: 1676556600
 ## Authentication (Optional)
 
 ```bash
-curl -H "X-API-Key: your-api-key-here" https://dr.eamer.dev/foresight/api/current
+curl -H "X-API-Key: your-api-key-here" https://dr.eamer.dev/consensus/api/current
 ```
 
 ## Full Documentation
 
-- **OpenAPI Spec:** `/home/coolhand/projects/foresight/openapi.yaml`
-- **Developer Guide:** `/home/coolhand/projects/foresight/docs/API.md`
-- **HTML Docs:** `/home/coolhand/docs/geepers/api-foresight.html`
-- **Architecture:** `/home/coolhand/geepers/reports/by-date/2026-02-16/api-foresight.md`
+- **OpenAPI Spec:** `/home/coolhand/projects/consensus/openapi.yaml`
+- **Developer Guide:** `/home/coolhand/projects/consensus/docs/API.md`
+- **HTML Docs:** `/home/coolhand/docs/geepers/api-consensus.html`
+- **Architecture:** `/home/coolhand/geepers/reports/by-date/2026-02-16/api-consensus.md`
 
 ## Implementation Status
 

@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foresight is a stock prediction dashboard. A background worker runs continuous prediction cycles where 8 language model providers debate as a weighted democracy — no fixed roles. All providers participate in every phase (discovery, analysis, synthesis). Premium tier (Claude/ChatGPT/Gemini) carry 1.5× weight, xai 1.1×, others lower. Accuracy is tracked over time.
+Consensus is a stock prediction dashboard. A background worker runs continuous prediction cycles where 8 language model providers debate as a weighted democracy — no fixed roles. All providers participate in every phase (discovery, analysis, synthesis). Premium tier (Claude/ChatGPT/Gemini) carry 1.5× weight, xai 1.1×, others lower. Accuracy is tracked over time.
 
-**Port**: 5062 | **URL**: https://dr.eamer.dev/foresight
+**Port**: 5062 | **URL**: https://dr.eamer.dev/consensus
 
 ## Quick Start
 
@@ -18,8 +18,8 @@ python run.py
 
 **Production** (service manager):
 ```bash
-sm start foresight-api
-sm logs foresight-api
+sm start consensus-api
+sm logs consensus-api
 ```
 
 ## Architecture
@@ -65,7 +65,7 @@ Required env vars: `XAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`.
 
 ### Database Schema (`db.py`)
 
-`ForesightDB` manages SQLite with WAL mode. Key tables:
+`ConsensusDB` manages SQLite with WAL mode. Key tables:
 - `cycles` — status: `active` | `completed` | `failed`
 - `stocks` — deduplicated by `ticker` (UNIQUE COLLATE NOCASE)
 - `prices` — snapshots per stock per cycle
@@ -96,7 +96,7 @@ pytest -m "not slow" -v
 ```
 
 Test fixtures (in `tests/conftest.py`):
-- `db` — fresh `ForesightDB` with temp file, tables cleared before/after each test
+- `db` — fresh `ConsensusDB` with temp file, tables cleared before/after each test
 - `mock_provider` — Mock with `.complete()` returning UP/0.75 JSON
 - `mock_provider_factory` — monkeypatches `ProviderFactory.get_provider`
 - `mock_yfinance` — monkeypatches `app.services.stock_service.yf`

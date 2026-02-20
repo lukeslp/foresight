@@ -1,5 +1,5 @@
 #!/bin/bash
-# Foresight test runner
+# Consensus test runner
 # Provides convenient shortcuts for common test operations
 
 set -e

@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## /init Checklist
-1. Confirm repo root: `pwd` should be the cloned `foresight` directory.
+1. Confirm repo root: `pwd` should be the cloned `consensus` directory.
 2. Read `README.md`, `app/config.py`, and `run_tests.sh` before making changes.
 3. Activate env and install deps:
    `python -m venv venv && source venv/bin/activate`
@@ -11,10 +11,10 @@
 
 ## Project Structure & Module Organization
 - `app/` is the Flask app: `routes/` (HTTP + SSE), `services/` (stock + prediction logic), `worker.py` (background cycle runner), `config.py` (env-driven settings), `database.py` (Flask DB bridge).
-- `db.py` is the core SQLite layer (`ForesightDB`) and owns schema/events/indexes.
+- `db.py` is the core SQLite layer (`ConsensusDB`) and owns schema/events/indexes.
 - `static/` contains dashboard assets: `js/` (D3 modules) and `css/` (layout/style/animations).
 - `tests/` contains pytest suites (`test_api.py`, `test_services.py`, `test_integration.py`, `test_db_extended.py`) and shared fixtures in `tests/conftest.py`.
-- Runtime artifacts (`foresight.db`, `foresight.log`, `htmlcov/`, `.pytest_cache/`) are not source files.
+- Runtime artifacts (`consensus.db`, `consensus.log`, `htmlcov/`, `.pytest_cache/`) are not source files.
 
 ## Build, Test, and Development Commands
 - `python run.py` starts the app locally on `http://localhost:5062` by default.

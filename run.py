@@ -1,5 +1,5 @@
 """
-Foresight - Stock Prediction Dashboard
+Consensus - Stock Prediction Dashboard
 Entry point for running the Flask application
 """
 import os

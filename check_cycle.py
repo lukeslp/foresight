@@ -1,6 +1,6 @@
 import sqlite3
 
-db = sqlite3.connect("foresight.db")
+db = sqlite3.connect("consensus.db")
 db.row_factory = sqlite3.Row
 
 cycle_id = 1921

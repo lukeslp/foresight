@@ -1,4 +1,4 @@
-# Foresight Database Schema
+# Consensus Database Schema
 
 SQLite database module with WAL mode, foreign keys, and comprehensive indexing.
 
@@ -163,10 +163,10 @@ CREATE TABLE events (
 ### Initialization
 
 ```python
-from db import ForesightDB, get_db
+from db import ConsensusDB, get_db
 
 # Create new instance
-db = ForesightDB('/path/to/database.db')
+db = ConsensusDB('/path/to/database.db')
 
 # Use singleton (recommended)
 db = get_db()

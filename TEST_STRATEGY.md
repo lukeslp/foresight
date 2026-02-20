@@ -1,8 +1,8 @@
-# Foresight Test Strategy
+# Consensus Test Strategy
 
 ## Overview
 
-Comprehensive test suite for the Foresight stock prediction dashboard. Tests cover database operations, API endpoints, LLM service integration, SSE streaming, and complete prediction cycle workflows.
+Comprehensive test suite for the Consensus stock prediction dashboard. Tests cover database operations, API endpoints, LLM service integration, SSE streaming, and complete prediction cycle workflows.
 
 ## Test Organization
 
@@ -46,7 +46,7 @@ tests/
 ## Test Fixtures
 
 ### Database Fixtures
-- `db` - Fresh ForesightDB instance per test
+- `db` - Fresh ConsensusDB instance per test
 - `sample_cycle` - Pre-created active cycle
 - `sample_stock` - Pre-created stock (AAPL)
 - `sample_prediction` - Pre-created prediction

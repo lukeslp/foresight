@@ -1,4 +1,4 @@
-# Foresight API Design Summary
+# Consensus API Design Summary
 
 **Date:** 2026-02-16
 **Status:** Design Complete, Implementation Pending
@@ -6,7 +6,7 @@
 ## Deliverables
 
 ### 1. OpenAPI Specification
-**Location:** `/home/coolhand/projects/foresight/openapi.yaml`
+**Location:** `/home/coolhand/projects/consensus/openapi.yaml`
 
 Complete OpenAPI 3.0.3 specification with:
 - 6 endpoint definitions (GET /current, /history, /stock/{symbol}, /stats, /stream, /health)
@@ -19,7 +19,7 @@ Complete OpenAPI 3.0.3 specification with:
 Can be imported into Swagger UI, Postman, Insomnia, or used to generate client SDKs.
 
 ### 2. Developer Documentation
-**Location:** `/home/coolhand/projects/foresight/docs/API.md`
+**Location:** `/home/coolhand/projects/consensus/docs/API.md`
 
 Comprehensive Markdown documentation with:
 - Endpoint descriptions with examples
@@ -31,7 +31,7 @@ Comprehensive Markdown documentation with:
 - Pagination strategies
 
 ### 3. HTML Documentation
-**Location:** `/home/coolhand/docs/geepers/api-foresight.html`
+**Location:** `/home/coolhand/docs/geepers/api-consensus.html`
 
 Clean, professional HTML documentation with:
 - Table of contents
@@ -42,7 +42,7 @@ Clean, professional HTML documentation with:
 - Swiss Design aesthetic (geometric, minimal)
 
 ### 4. Architecture Report
-**Location:** `/home/coolhand/geepers/reports/by-date/2026-02-16/api-foresight.md`
+**Location:** `/home/coolhand/geepers/reports/by-date/2026-02-16/api-consensus.md`
 
 Detailed report covering:
 - Design decisions and rationale
@@ -53,7 +53,7 @@ Detailed report covering:
 - Success metrics
 
 ### 5. Project Recommendations
-**Location:** `/home/coolhand/geepers/recommendations/by-project/foresight.md`
+**Location:** `/home/coolhand/geepers/recommendations/by-project/consensus.md`
 
 Prioritized action items:
 - Critical: Implement database module
@@ -265,23 +265,23 @@ Called by worker to generate predictions. API only consumes results.
 Background price updates, triggers SSE price_update events.
 
 ### Service Manager
-Add foresight to `~/service_manager.py` for process management.
+Add consensus to `~/service_manager.py` for process management.
 
 ### Caddy
-Configure reverse proxy at `/foresight/` in `/etc/caddy/Caddyfile`.
+Configure reverse proxy at `/consensus/` in `/etc/caddy/Caddyfile`.
 
 ## File Reference
 
 **Project Files:**
-- `/home/coolhand/projects/foresight/openapi.yaml` - OpenAPI spec
-- `/home/coolhand/projects/foresight/docs/API.md` - Developer docs
-- `/home/coolhand/projects/foresight/app.py` - Flask server (stub)
-- `/home/coolhand/projects/foresight/settings.py` - Configuration
+- `/home/coolhand/projects/consensus/openapi.yaml` - OpenAPI spec
+- `/home/coolhand/projects/consensus/docs/API.md` - Developer docs
+- `/home/coolhand/projects/consensus/app.py` - Flask server (stub)
+- `/home/coolhand/projects/consensus/settings.py` - Configuration
 
 **Geepers Output:**
-- `/home/coolhand/geepers/reports/by-date/2026-02-16/api-foresight.md` - Architecture report
-- `/home/coolhand/geepers/recommendations/by-project/foresight.md` - Implementation roadmap
-- `/home/coolhand/docs/geepers/api-foresight.html` - HTML documentation
+- `/home/coolhand/geepers/reports/by-date/2026-02-16/api-consensus.md` - Architecture report
+- `/home/coolhand/geepers/recommendations/by-project/consensus.md` - Implementation roadmap
+- `/home/coolhand/docs/geepers/api-consensus.html` - HTML documentation
 
 **To Create:**
 - `db.py` - Database module

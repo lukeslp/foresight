@@ -7,7 +7,7 @@ class APIError extends Error {
   }
 }
 
-class ForesightAPI {
+class ConsensusAPI {
   constructor(base = '') {
     this.base = base;
   }
@@ -35,5 +35,5 @@ class ForesightAPI {
   stopCycle(id) { return this.request(`/api/cycle/${id}/stop`, { method: 'POST' }); }
 }
 
-window.ForesightAPI = ForesightAPI;
+window.ConsensusAPI = ConsensusAPI;
 window.APIError = APIError;

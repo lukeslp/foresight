@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Foresight Stock Prediction API
+  title: Consensus Stock Prediction API
   description: |
     Real-time stock prediction dashboard using multi-provider language models.
     Provides stock discovery, predictions, and accuracy tracking.
@@ -12,7 +12,7 @@ info:
     name: MIT
 
 servers:
-  - url: https://dr.eamer.dev/foresight/api
+  - url: https://dr.eamer.dev/consensus/api
     description: Production server
   - url: http://localhost:5062/api
     description: Local development server
@@ -333,7 +333,7 @@ paths:
                 $ref: '#/components/schemas/Health'
               example:
                 status: "healthy"
-                service: "foresight"
+                service: "consensus"
                 version: "1.0.0"
                 timestamp: "2026-02-16T14:30:00Z"
                 components:
@@ -351,7 +351,7 @@ paths:
                 $ref: '#/components/schemas/Health'
               example:
                 status: "unhealthy"
-                service: "foresight"
+                service: "consensus"
                 version: "1.0.0"
                 timestamp: "2026-02-16T14:30:00Z"
                 components:
@@ -708,7 +708,7 @@ components:
         service:
           type: string
           description: Service name
-          example: foresight
+          example: consensus
         version:
           type: string
           description: API version

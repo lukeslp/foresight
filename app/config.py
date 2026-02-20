@@ -1,5 +1,5 @@
 """
-Foresight Configuration
+Consensus Configuration
 Environment-based configuration classes
 """
 import os
@@ -126,7 +126,7 @@ class Config:
     HOST = os.environ.get('HOST', '0.0.0.0')
 
     # Database (SQLite with WAL mode for concurrent reads)
-    DB_PATH = os.environ.get('DB_PATH', str(BASE_DIR / 'foresight.db'))
+    DB_PATH = os.environ.get('DB_PATH', str(BASE_DIR / 'consensus.db'))
 
     # Legacy cycle interval (kept for backwards compatibility with existing tooling)
     CYCLE_INTERVAL = int(os.environ.get('CYCLE_INTERVAL', 1800))
@@ -146,7 +146,7 @@ class Config:
     OVERNIGHT_CHECK_TIMES = os.environ.get('OVERNIGHT_CHECK_TIMES', '20:00,06:00')
     OVERNIGHT_LOOKAHEAD_HOURS = int(os.environ.get('OVERNIGHT_LOOKAHEAD_HOURS', 18))
     SCHEDULE_POLL_SECONDS = int(os.environ.get('SCHEDULE_POLL_SECONDS', 20))
-    WORKER_HEARTBEAT_PATH = os.environ.get('WORKER_HEARTBEAT_PATH', '/tmp/foresight.worker.heartbeat')
+    WORKER_HEARTBEAT_PATH = os.environ.get('WORKER_HEARTBEAT_PATH', '/tmp/consensus.worker.heartbeat')
     WORKER_HEARTBEAT_MAX_AGE_SECONDS = int(os.environ.get('WORKER_HEARTBEAT_MAX_AGE_SECONDS', 120))
     PROVIDER_HEALTH_COOLDOWN_SECONDS = int(os.environ.get('PROVIDER_HEALTH_COOLDOWN_SECONDS', 3600))
     OVERNIGHT_LIGHT_MODE = os.environ.get('OVERNIGHT_LIGHT_MODE', 'true').lower() not in ('0', 'false', 'no')
