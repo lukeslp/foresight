@@ -779,6 +779,46 @@
     }
   }
 
+  // ── Keyboard Focus ───────────────────────────────────────────
+  function highlightRow(rows) {
+    rows.forEach(r => r.classList.remove('keyboard-focus'));
+    if (keyboardFocusIndex >= 0 && keyboardFocusIndex < rows.length) {
+      rows[keyboardFocusIndex].classList.add('keyboard-focus');
+      rows[keyboardFocusIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  // ── Freshness Indicator ─────────────────────────────────────
+  function updateFreshness() {
+    const el = $('#stat-freshness');
+    if (!el) return;
+    if (!lastUpdateTime) { el.textContent = '--'; return; }
+    const seconds = Math.floor((Date.now() - lastUpdateTime) / 1000);
+    if (seconds < 60) el.textContent = seconds + 's ago';
+    else if (seconds < 3600) el.textContent = Math.floor(seconds / 60) + 'm ago';
+    else el.textContent = Math.floor(seconds / 3600) + 'h ago';
+  }
+
+  // ── Cycle Progress Bar ──────────────────────────────────────
+  function updateCycleProgress(cycle) {
+    const bar = $('#cycle-progress');
+    const fill = $('#cycle-progress-fill');
+    if (!bar || !fill) return;
+
+    if (!cycle || cycle.status !== 'active') {
+      bar.hidden = true;
+      return;
+    }
+
+    const made = cycle.predictions_made || 0;
+    const discovered = cycle.stocks_discovered || 0;
+    // Approximate: each stock generates ~3 predictions (analysis + council + consensus)
+    const expected = discovered > 0 ? discovered * 3 : 100;
+    const pct = Math.min(100, Math.round((made / expected) * 100));
+    bar.hidden = false;
+    fill.style.width = pct + '%';
+  }
+
   // ── Helpers ────────────────────────────────────────────────
   function isCrypto(ticker) {
     if (!ticker) return false;
