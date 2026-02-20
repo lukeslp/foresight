@@ -45,13 +45,17 @@ class OllamaProvider(BaseLLMProvider):
             model: Default model name (e.g., 'llama3.2', 'llava'). If not provided,
                    will use first available model.
         """
-        # Initialize with dummy API key (not used by Ollama)
+        # Initialize with dummy API key (not used by local Ollama)
         super().__init__(api_key=api_key or "local", model=model)
 
         # Determine Ollama host from environment or use default
         self.host = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
         self.available = False
         self.cached_models = []
+
+        # Optional Bearer token for Ollama Cloud (api.ollama.com)
+        _raw_key = api_key if (api_key and api_key != "local") else os.environ.get('OLLAMA_API_KEY')
+        self._auth_headers = {'Authorization': f'Bearer {_raw_key}'} if _raw_key else {}
 
         # Check if Ollama server is running
         self.available = self._check_availability()
