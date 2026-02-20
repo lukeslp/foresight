@@ -1043,7 +1043,7 @@ class PredictionWorker:
 
                         report['stage'] = stage_name
                         analyst_reports.append(report)
-                        db.add_prediction(
+                        pred_id = db.add_prediction(
                             cycle_id=cycle_id,
                             stock_id=stock_id,
                             provider=report['provider'],
@@ -1053,6 +1053,23 @@ class PredictionWorker:
                             target_time=target_time,
                             reasoning=f"[{stage_name}] {report['reasoning']}"
                         )
+                        # Persist individual sub-agent votes to agent_votes table
+                        for subagent in report.get('subagents', []):
+                            try:
+                                db.add_agent_vote(
+                                    cycle_id=cycle_id,
+                                    stock_id=stock_id,
+                                    provider=provider_name,
+                                    vote_direction=subagent.get('prediction', 'neutral'),
+                                    confidence=float(subagent.get('confidence', 0.5)),
+                                    phase='analysis',
+                                    agent_role=subagent.get('subagent', 'unknown'),
+                                    reasoning=subagent.get('reasoning', ''),
+                                    model=report.get('model', ''),
+                                    prediction_id=pred_id
+                                )
+                            except Exception as vote_err:
+                                logger.debug(f'Failed to persist sub-agent vote: {vote_err}')
                     except Exception as e:
                         if self._should_block_provider(str(e)):
                             provider_blocklist.add(provider_name)
@@ -1101,6 +1118,21 @@ class PredictionWorker:
                     target_time=target_time,
                     reasoning=council_reasoning
                 )
+                # Persist council debate round
+                try:
+                    db.add_debate_round(
+                        cycle_id=cycle_id,
+                        stock_id=stock_id,
+                        round_type='council',
+                        vote_totals=vote_totals,
+                        winning_direction=winning_direction,
+                        winning_confidence=council_confidence,
+                        participant_count=len(analyst_reports),
+                        debate_transcript='\n'.join(per_provider_lines),
+                        provider_weights=weights
+                    )
+                except Exception as dr_err:
+                    logger.debug(f'Failed to persist council debate round: {dr_err}')
 
                 # Final-stage democratic synthesis (no single lead model)
                 active_synthesis_order = [p for p in synthesis_order if p not in provider_blocklist]
@@ -1117,7 +1149,7 @@ class PredictionWorker:
                 if consensus:
                     # Persist each synthesis vote for transparency
                     for report in consensus.get('reports', []):
-                        db.add_prediction(
+                        syn_pred_id = db.add_prediction(
                             cycle_id=cycle_id,
                             stock_id=stock_id,
                             provider=f"{report['provider']}-synthesis",
@@ -1127,6 +1159,45 @@ class PredictionWorker:
                             target_time=target_time,
                             reasoning=f"[{report.get('stage','n/a')}] {report.get('reasoning','')}"
                         )
+                        # Persist synthesis vote to agent_votes table
+                        try:
+                            db.add_agent_vote(
+                                cycle_id=cycle_id,
+                                stock_id=stock_id,
+                                provider=report['provider'],
+                                vote_direction=report['prediction'],
+                                confidence=float(report.get('confidence', 0.5)),
+                                phase='synthesis',
+                                agent_role='council_member',
+                                reasoning=report.get('reasoning', ''),
+                                model=report.get('model', ''),
+                                prediction_id=syn_pred_id
+                            )
+                        except Exception as sv_err:
+                            logger.debug(f'Failed to persist synthesis vote: {sv_err}')
+
+                    # Persist synthesis debate round
+                    try:
+                        syn_vote_totals = consensus.get('vote_totals', {})
+                        syn_transcript_lines = []
+                        for r in consensus.get('reports', []):
+                            syn_transcript_lines.append(
+                                f"{r['provider']} [{r.get('stage','n/a')}]: {r['prediction']} "
+                                f"(conf={r.get('confidence', 0):.2f}) - {r.get('reasoning', '')}"
+                            )
+                        db.add_debate_round(
+                            cycle_id=cycle_id,
+                            stock_id=stock_id,
+                            round_type='synthesis',
+                            vote_totals=syn_vote_totals,
+                            winning_direction=consensus['prediction'],
+                            winning_confidence=consensus['confidence'],
+                            participant_count=len(consensus.get('reports', [])),
+                            debate_transcript='\n'.join(syn_transcript_lines),
+                            provider_weights=weights
+                        )
+                    except Exception as sdr_err:
+                        logger.debug(f'Failed to persist synthesis debate round: {sdr_err}')
 
                     db.add_prediction(
                         cycle_id=cycle_id,

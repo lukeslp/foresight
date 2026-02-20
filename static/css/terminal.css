@@ -970,3 +970,317 @@ body {
 .detail-panel {
   animation: slide-in 0.2s ease-out;
 }
+
+/* ============================================================
+   Pending Rows (stocks without predictions yet)
+   ============================================================ */
+.pending-row {
+  opacity: 0.5;
+}
+.pending-row:hover {
+  opacity: 0.8;
+}
+.pending-row .ticker-symbol {
+  color: var(--text-muted);
+}
+.pending-row .price-val {
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Vote Bars (council debate visualization)
+   ============================================================ */
+.vote-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.vote-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vote-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.vote-label.up { color: var(--up); }
+.vote-label.down { color: var(--down); }
+.vote-label.neutral { color: var(--neutral); }
+
+.vote-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-hover);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.vote-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.vote-bar-fill.up { background: var(--up); }
+.vote-bar-fill.down { background: var(--down); }
+.vote-bar-fill.neutral { background: var(--neutral); }
+
+.vote-score {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.vote-winner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.vote-conf {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.vote-participants {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ============================================================
+   Agent Vote List (individual agent votes in detail panel)
+   ============================================================ */
+.agent-vote-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-vote-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.agent-vote-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-provider {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agent-role {
+  font-size: 0.6rem;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+}
+
+.agent-conf {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.agent-reasoning {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   Reasoning Sections (structured council debate display)
+   ============================================================ */
+.reasoning-section {
+  margin-bottom: 16px;
+}
+
+.reasoning-header {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reasoning-body {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.report-provider {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.report-stage {
+  font-size: 0.6rem;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+}
+
+.report-conf {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.report-weight {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.report-reason {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   Detail Prediction Row (enhanced with reasoning)
+   ============================================================ */
+.detail-prediction-row {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(30, 45, 64, 0.5);
+}
+
+.detail-pred-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.detail-pred-reasoning {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   Markdown Rendering Styles
+   ============================================================ */
+.md-p {
+  margin: 0 0 4px 0;
+  line-height: 1.5;
+}
+
+.md-h2 {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 8px 0 4px 0;
+}
+
+.md-h3 {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 6px 0 3px 0;
+}
+
+.md-h4 {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 4px 0 2px 0;
+}
+
+.md-code {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: var(--bg-hover);
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: var(--accent);
+}
+
+.md-list {
+  margin: 4px 0 4px 16px;
+  list-style: none;
+}
+
+.md-list li::before {
+  content: '›';
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.md-sep {
+  color: var(--border-light);
+  font-size: 0.7rem;
+}

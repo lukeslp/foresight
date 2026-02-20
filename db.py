@@ -129,6 +129,50 @@ class ForesightDB:
                 )
             """)
 
+            # Agent votes table - individual sub-agent and council member votes
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS agent_votes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    prediction_id INTEGER,
+                    cycle_id INTEGER NOT NULL,
+                    stock_id INTEGER NOT NULL,
+                    provider TEXT NOT NULL,
+                    agent_role TEXT,
+                    phase TEXT NOT NULL DEFAULT 'analysis',
+                    vote_direction TEXT NOT NULL,
+                    confidence REAL,
+                    reasoning TEXT,
+                    model TEXT,
+                    raw_response TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (prediction_id) REFERENCES predictions(id) ON DELETE CASCADE,
+                    FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE CASCADE,
+                    FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE,
+                    CONSTRAINT vote_direction_check CHECK (vote_direction IN ('up', 'down', 'neutral')),
+                    CONSTRAINT phase_check CHECK (phase IN ('analysis', 'synthesis', 'council', 'market'))
+                )
+            """)
+
+            # Debate rounds table - council debate transcripts and vote tallies
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS debate_rounds (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cycle_id INTEGER NOT NULL,
+                    stock_id INTEGER NOT NULL,
+                    round_type TEXT NOT NULL DEFAULT 'council',
+                    vote_totals TEXT,
+                    winning_direction TEXT,
+                    winning_confidence REAL,
+                    participant_count INTEGER DEFAULT 0,
+                    debate_transcript TEXT,
+                    provider_weights TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE CASCADE,
+                    FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE CASCADE,
+                    CONSTRAINT round_type_check CHECK (round_type IN ('council', 'synthesis', 'market'))
+                )
+            """)
+
             # Events table - SSE bridge for real-time updates
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS events (
@@ -175,6 +219,18 @@ class ForesightDB:
             "CREATE INDEX IF NOT EXISTS idx_accuracy_provider ON accuracy_stats(provider)",
             "CREATE INDEX IF NOT EXISTS idx_accuracy_timeframe ON accuracy_stats(timeframe)",
             "CREATE INDEX IF NOT EXISTS idx_accuracy_calculated ON accuracy_stats(calculated_at DESC)",
+
+            # Agent votes
+            "CREATE INDEX IF NOT EXISTS idx_agent_votes_cycle ON agent_votes(cycle_id)",
+            "CREATE INDEX IF NOT EXISTS idx_agent_votes_stock ON agent_votes(stock_id)",
+            "CREATE INDEX IF NOT EXISTS idx_agent_votes_provider ON agent_votes(provider)",
+            "CREATE INDEX IF NOT EXISTS idx_agent_votes_phase ON agent_votes(phase)",
+            "CREATE INDEX IF NOT EXISTS idx_agent_votes_prediction ON agent_votes(prediction_id)",
+
+            # Debate rounds
+            "CREATE INDEX IF NOT EXISTS idx_debate_rounds_cycle ON debate_rounds(cycle_id)",
+            "CREATE INDEX IF NOT EXISTS idx_debate_rounds_stock ON debate_rounds(stock_id)",
+            "CREATE INDEX IF NOT EXISTS idx_debate_rounds_type ON debate_rounds(round_type)",
 
             # Events
             "CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type)",
@@ -715,6 +771,135 @@ class ForesightDB:
                 result = dict(row)
                 if result.get('metadata'):
                     result['metadata'] = json.loads(result['metadata'])
+                results.append(result)
+            return results
+
+    # ========== Agent Votes CRUD ==========
+
+    def add_agent_vote(
+        self,
+        cycle_id: int,
+        stock_id: int,
+        provider: str,
+        vote_direction: str,
+        confidence: float,
+        phase: str = 'analysis',
+        agent_role: str = None,
+        reasoning: str = None,
+        model: str = None,
+        raw_response: str = None,
+        prediction_id: int = None
+    ) -> int:
+        """Record an individual agent vote"""
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO agent_votes (
+                    prediction_id, cycle_id, stock_id, provider, agent_role,
+                    phase, vote_direction, confidence, reasoning, model, raw_response
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                prediction_id, cycle_id, stock_id, provider, agent_role,
+                phase, vote_direction, confidence, reasoning, model, raw_response
+            ))
+            return cursor.lastrowid
+
+    def get_agent_votes_for_stock(
+        self,
+        stock_id: int,
+        cycle_id: int = None,
+        phase: str = None,
+        limit: int = 200
+    ) -> List[Dict[str, Any]]:
+        """Get agent votes for a stock, optionally filtered by cycle and phase"""
+        with self.get_connection() as conn:
+            query = "SELECT * FROM agent_votes WHERE stock_id = ?"
+            params = [stock_id]
+            if cycle_id:
+                query += " AND cycle_id = ?"
+                params.append(cycle_id)
+            if phase:
+                query += " AND phase = ?"
+                params.append(phase)
+            query += " ORDER BY created_at DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(query, params).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_agent_votes_for_cycle(
+        self,
+        cycle_id: int,
+        stock_id: int = None
+    ) -> List[Dict[str, Any]]:
+        """Get all agent votes for a cycle"""
+        with self.get_connection() as conn:
+            query = """
+                SELECT av.*, s.ticker, s.name
+                FROM agent_votes av
+                JOIN stocks s ON av.stock_id = s.id
+                WHERE av.cycle_id = ?
+            """
+            params = [cycle_id]
+            if stock_id:
+                query += " AND av.stock_id = ?"
+                params.append(stock_id)
+            query += " ORDER BY av.created_at ASC"
+            rows = conn.execute(query, params).fetchall()
+            return [dict(row) for row in rows]
+
+    # ========== Debate Rounds CRUD ==========
+
+    def add_debate_round(
+        self,
+        cycle_id: int,
+        stock_id: int,
+        round_type: str,
+        vote_totals: Dict,
+        winning_direction: str,
+        winning_confidence: float,
+        participant_count: int = 0,
+        debate_transcript: str = None,
+        provider_weights: Dict = None
+    ) -> int:
+        """Record a debate round with vote tallies"""
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO debate_rounds (
+                    cycle_id, stock_id, round_type, vote_totals,
+                    winning_direction, winning_confidence, participant_count,
+                    debate_transcript, provider_weights
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cycle_id, stock_id, round_type,
+                json.dumps(vote_totals),
+                winning_direction, winning_confidence, participant_count,
+                debate_transcript,
+                json.dumps(provider_weights) if provider_weights else None
+            ))
+            return cursor.lastrowid
+
+    def get_debate_rounds_for_stock(
+        self,
+        stock_id: int,
+        cycle_id: int = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Get debate rounds for a stock"""
+        with self.get_connection() as conn:
+            query = "SELECT * FROM debate_rounds WHERE stock_id = ?"
+            params = [stock_id]
+            if cycle_id:
+                query += " AND cycle_id = ?"
+                params.append(cycle_id)
+            query += " ORDER BY created_at DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(query, params).fetchall()
+            results = []
+            for row in rows:
+                result = dict(row)
+                if result.get('vote_totals'):
+                    result['vote_totals'] = json.loads(result['vote_totals'])
+                if result.get('provider_weights'):
+                    result['provider_weights'] = json.loads(result['provider_weights'])
                 results.append(result)
             return results
 

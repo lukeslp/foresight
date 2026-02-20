@@ -61,6 +61,81 @@ def current():
     })
 
 
+@api_bp.route('/watchlist')
+def watchlist():
+    """Return the full watchlist (all 100 tracked symbols) with latest prediction data merged in.
+    Stocks without predictions yet show as pending."""
+    from app.config import TOP_50_EQUITIES, TOP_50_CRYPTO
+
+    equity_list = current_app.config.get('EQUITY_WATCHLIST', TOP_50_EQUITIES)
+    crypto_list = current_app.config.get('CRYPTO_WATCHLIST', TOP_50_CRYPTO)
+
+    db = get_db()
+    cycle = db.get_current_cycle()
+
+    # Build prediction lookup from current cycle
+    pred_by_ticker = {}
+    if cycle:
+        all_predictions = db.get_predictions_for_cycle(cycle['id'])
+        for p in all_predictions:
+            ticker = p.get('ticker')
+            if not ticker:
+                continue
+            existing = pred_by_ticker.get(ticker)
+            provider = p.get('provider', '')
+            if existing is None:
+                pred_by_ticker[ticker] = p
+            elif provider.endswith('-consensus'):
+                pred_by_ticker[ticker] = p
+            elif provider == 'council-weighted' and not existing.get('provider', '').endswith('-consensus'):
+                pred_by_ticker[ticker] = p
+            elif (
+                not existing.get('provider', '').endswith('-consensus')
+                and existing.get('provider') != 'council-weighted'
+                and (p.get('confidence') or 0) > (existing.get('confidence') or 0)
+            ):
+                pred_by_ticker[ticker] = p
+
+    # Build stock info lookup from DB
+    all_stocks = db.get_all_stocks()
+    stock_info = {s['ticker'].upper(): s for s in all_stocks}
+
+    # Merge watchlist with predictions
+    items = []
+    seen = set()
+    for symbol in equity_list + crypto_list:
+        key = symbol.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        pred = pred_by_ticker.get(key)
+        info = stock_info.get(key, {})
+        is_crypto = key.endswith('-USD') or key.startswith('MARKET-CRYPTO')
+        item = {
+            'ticker': key,
+            'name': info.get('name', ''),
+            'asset_type': 'crypto' if is_crypto else 'equity',
+            'last_price': info.get('last_price'),
+            'predicted_direction': pred.get('predicted_direction') if pred else None,
+            'confidence': pred.get('confidence') if pred else None,
+            'initial_price': pred.get('initial_price') if pred else info.get('last_price'),
+            'provider': pred.get('provider', '') if pred else '',
+            'prediction_time': pred.get('prediction_time') if pred else None,
+            'target_time': pred.get('target_time') if pred else None,
+            'times_predicted': info.get('times_predicted', 0),
+            'avg_accuracy': info.get('avg_accuracy'),
+            'has_prediction': pred is not None,
+        }
+        items.append(item)
+
+    return jsonify({
+        'cycle': cycle,
+        'watchlist': items,
+        'total_equities': len(equity_list),
+        'total_crypto': len(crypto_list),
+    })
+
+
 @api_bp.route('/stats')
 def stats():
     """Get accuracy statistics"""
@@ -132,11 +207,25 @@ def stock_detail(symbol):
     # Get price history
     price_history = db.get_price_history(stock['id'], limit=100)
 
+    # Get agent votes (latest cycle first, then all)
+    cycle = db.get_current_cycle()
+    agent_votes = []
+    debate_rounds = []
+    if cycle:
+        agent_votes = db.get_agent_votes_for_stock(stock['id'], cycle_id=cycle['id'])
+        debate_rounds = db.get_debate_rounds_for_stock(stock['id'], cycle_id=cycle['id'])
+    if not agent_votes:
+        agent_votes = db.get_agent_votes_for_stock(stock['id'], limit=50)
+    if not debate_rounds:
+        debate_rounds = db.get_debate_rounds_for_stock(stock['id'], limit=10)
+
     return jsonify({
         'symbol': symbol.upper(),
         'stock': stock,
         'predictions': predictions,
         'price_history': price_history,
+        'agent_votes': agent_votes,
+        'debate_rounds': debate_rounds,
         'times_predicted': stock.get('times_predicted', 0),
         'avg_accuracy': stock.get('avg_accuracy')
     })

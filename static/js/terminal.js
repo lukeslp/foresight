@@ -23,12 +23,14 @@
   };
 
   // ── State ──────────────────────────────────────────────────
-  let allPredictions = [];
+  let allWatchlist = [];       // Full 100-item watchlist (from /api/watchlist)
+  let allPredictions = [];     // Predictions from /api/current (fallback)
   let currentFilter = 'all';
   let currentSort = 'ticker';
   let searchQuery = '';
   let sseSource = null;
   let feedMessages = [];
+  let useWatchlistMode = false;
 
   // ── DOM refs ───────────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -39,6 +41,111 @@
     const res = await fetch(API_ROOT + path);
     if (!res.ok) throw new Error(`API ${path}: ${res.status}`);
     return res.json();
+  }
+
+  // ── Simple markdown renderer ───────────────────────────────
+  function renderMarkdown(text) {
+    if (!text) return '';
+    let html = escapeHtml(text);
+
+    // Headers
+    html = html.replace(/^### (.+)$/gm, '<h4 class="md-h4">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 class="md-h3">$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>');
+
+    // Bold and italic
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
+
+    // Bullet lists
+    html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul class="md-list">$&</ul>');
+
+    // Numbered lists
+    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+    // Pipe-delimited sections (common in reasoning output)
+    html = html.replace(/ \| /g, '<br><span class="md-sep">│</span> ');
+    html = html.replace(/ \|\| /g, '<br><span class="md-sep">║</span> ');
+
+    // Line breaks (double newline = paragraph, single = br)
+    html = html.replace(/\n\n/g, '</p><p class="md-p">');
+    html = html.replace(/\n/g, '<br>');
+
+    return '<p class="md-p">' + html + '</p>';
+  }
+
+  // ── Format reasoning into structured sections ──────────────
+  function formatReasoning(reasoning) {
+    if (!reasoning) return '';
+
+    // Parse the council reasoning format
+    // Pattern: "Council weighted vote totals: up=X, down=Y, neutral=Z. Winner=dir. Individual reports: provider [stage]: ..."
+    const councilMatch = reasoning.match(/Council weighted vote totals: up=([\d.]+), down=([\d.]+), neutral=([\d.]+)\. Winner=(\w+)\./);
+    if (councilMatch) {
+      const [, up, down, neutral, winner] = councilMatch;
+      let html = `<div class="reasoning-section">
+        <div class="reasoning-header">Council Vote Totals</div>
+        <div class="vote-bars">
+          <div class="vote-bar-row">
+            <span class="vote-label up">▲ UP</span>
+            <div class="vote-bar-bg"><div class="vote-bar-fill up" style="width:${Math.round(parseFloat(up) / (parseFloat(up) + parseFloat(down) + parseFloat(neutral)) * 100)}%"></div></div>
+            <span class="vote-score">${parseFloat(up).toFixed(2)}</span>
+          </div>
+          <div class="vote-bar-row">
+            <span class="vote-label down">▼ DOWN</span>
+            <div class="vote-bar-bg"><div class="vote-bar-fill down" style="width:${Math.round(parseFloat(down) / (parseFloat(up) + parseFloat(down) + parseFloat(neutral)) * 100)}%"></div></div>
+            <span class="vote-score">${parseFloat(down).toFixed(2)}</span>
+          </div>
+          <div class="vote-bar-row">
+            <span class="vote-label neutral">● HOLD</span>
+            <div class="vote-bar-bg"><div class="vote-bar-fill neutral" style="width:${Math.round(parseFloat(neutral) / (parseFloat(up) + parseFloat(down) + parseFloat(neutral)) * 100)}%"></div></div>
+            <span class="vote-score">${parseFloat(neutral).toFixed(2)}</span>
+          </div>
+        </div>
+        <div class="vote-winner">Winner: <span class="dir-badge ${winner}">${dirLabel(winner)}</span></div>
+      </div>`;
+
+      // Parse individual reports
+      const reportsMatch = reasoning.match(/Individual reports: (.+)/);
+      if (reportsMatch) {
+        const reports = reportsMatch[1].split(' | ').filter(r => r.trim());
+        if (reports.length > 0) {
+          html += `<div class="reasoning-section">
+            <div class="reasoning-header">Individual Reports</div>
+            <div class="report-list">`;
+          for (const report of reports) {
+            const provMatch = report.match(/^(\w+)\s*\[(\w+)\]:\s*dir=(\w+)\s+conf=([\d.]+)\s+weight=([\d.]+)\s+score=([\d.]+);\s*reason=(.*)/);
+            if (provMatch) {
+              const [, prov, stage, dir, conf, weight, score, reason] = provMatch;
+              html += `<div class="report-item">
+                <div class="report-header">
+                  <span class="report-provider">${prettyProvider(prov)}</span>
+                  <span class="report-stage">${stage}</span>
+                  <span class="dir-badge ${dir}" style="font-size:0.65rem">${dirLabel(dir)}</span>
+                  <span class="report-conf">${Math.round(parseFloat(conf) * 100)}%</span>
+                  <span class="report-weight" title="Weight">w=${parseFloat(weight).toFixed(2)}</span>
+                </div>
+                <div class="report-reason">${renderMarkdown(reason.trim())}</div>
+              </div>`;
+            } else {
+              html += `<div class="report-item"><div class="report-reason">${renderMarkdown(report.trim())}</div></div>`;
+            }
+          }
+          html += `</div></div>`;
+        }
+      }
+      return html;
+    }
+
+    // Fallback: render as markdown
+    return `<div class="reasoning-section">
+      <div class="reasoning-header">Analysis</div>
+      <div class="reasoning-body">${renderMarkdown(reasoning)}</div>
+    </div>`;
   }
 
   // ── Initialization ─────────────────────────────────────────
@@ -53,23 +160,44 @@
   async function loadAll() {
     try {
       const results = await Promise.allSettled([
+        apiFetch('/watchlist'),
         apiFetch('/current'),
         apiFetch('/stats'),
         apiFetch('/health/providers'),
         apiFetch('/history?per_page=10'),
       ]);
-      const current = results[0].status === 'fulfilled' ? results[0].value : null;
-      const stats   = results[1].status === 'fulfilled' ? results[1].value : null;
-      const health  = results[2].status === 'fulfilled' ? results[2].value : null;
-      const history = results[3].status === 'fulfilled' ? results[3].value : null;
+      const watchlistData = results[0].status === 'fulfilled' ? results[0].value : null;
+      const current       = results[1].status === 'fulfilled' ? results[1].value : null;
+      const stats         = results[2].status === 'fulfilled' ? results[2].value : null;
+      const health        = results[3].status === 'fulfilled' ? results[3].value : null;
+      const history       = results[4].status === 'fulfilled' ? results[4].value : null;
 
-      if (current) { renderPredictions(current); renderMarketDirection(current); updatePhase(current); updateFeedFromData(current); }
+      if (watchlistData && watchlistData.watchlist) {
+        useWatchlistMode = true;
+        allWatchlist = watchlistData.watchlist;
+        renderTable();
+        if (watchlistData.cycle) {
+          updatePhaseFromCycle(watchlistData.cycle);
+        }
+      } else if (current) {
+        useWatchlistMode = false;
+        renderPredictions(current);
+      }
+
+      if (current) { renderMarketDirection(current); updateFeedFromData(current); }
       if (stats)   { renderStats(stats); renderAccuracy(stats); }
       if (health)  { renderProviders(health); }
-      if (history)  { renderCycles(history); }
+      if (history) { renderCycles(history); }
+
+      // Update cycle controls from current data
+      if (current && current.cycle) {
+        const hasActive = current.cycle.status === 'active';
+        $('#run-cycle-btn').disabled = hasActive;
+        $('#abort-cycle-btn').disabled = !hasActive;
+      }
 
       // Show error if nothing loaded
-      if (!current && !stats) {
+      if (!watchlistData && !current && !stats) {
         $('#stock-tbody').innerHTML = '<tr class="empty-row"><td colspan="5">API connection error — retrying...</td></tr>';
       }
     } catch (e) {
@@ -93,11 +221,9 @@
         const msg = JSON.parse(e.data);
         if (msg.type === 'heartbeat' || msg.type === 'connected') return;
         if (msg.type === 'snapshot') {
-          // Initial snapshot from SSE
           loadAll();
           return;
         }
-        // Real event — update feed and refresh data
         handleSSEEvent(msg);
       } catch (err) {
         console.warn('SSE parse error:', err);
@@ -116,7 +242,6 @@
     const data = msg.data || {};
     const type = msg.type || data.event_type || '';
 
-    // Update live feed
     let feedText = '';
     if (type === 'prediction' && data.ticker) {
       const dir = (data.predicted_direction || '').toUpperCase();
@@ -125,7 +250,7 @@
       feedText = `Cycle #${data.cycle_id || '?'} started`;
     } else if (type === 'cycle_completed') {
       feedText = `Cycle #${data.cycle_id || '?'} completed`;
-      loadAll(); // Full refresh on cycle complete
+      loadAll();
     } else if (type === 'stock_processing') {
       feedText = `Analyzing ${data.ticker || '?'}...`;
     }
@@ -136,7 +261,6 @@
       $('#feed-track').textContent = feedMessages[0];
     }
 
-    // Incremental refresh for predictions
     if (type === 'prediction' || type === 'stock_complete') {
       loadAll();
     }
@@ -144,7 +268,6 @@
 
   // ── Event Bindings ─────────────────────────────────────────
   function bindEvents() {
-    // Tabs
     $$('#market-tabs .tab').forEach(tab => {
       tab.addEventListener('click', () => {
         $$('#market-tabs .tab').forEach(t => t.classList.remove('active'));
@@ -154,19 +277,16 @@
       });
     });
 
-    // Search
     $('#search-input').addEventListener('input', (e) => {
       searchQuery = e.target.value.toLowerCase().trim();
       renderTable();
     });
 
-    // Sort
     $('#sort-select').addEventListener('change', (e) => {
       currentSort = e.target.value;
       renderTable();
     });
 
-    // Cycle controls
     $('#run-cycle-btn').addEventListener('click', async () => {
       try {
         await fetch(API_ROOT + '/cycle/start', { method: 'POST' });
@@ -190,12 +310,10 @@
       }
     });
 
-    // Panel toggle
     $('#panel-toggle').addEventListener('click', () => {
       $('#side-panel').classList.toggle('collapsed');
     });
 
-    // Detail overlay
     $('#detail-backdrop').addEventListener('click', closeDetail);
     $('#detail-close').addEventListener('click', closeDetail);
     document.addEventListener('keydown', (e) => {
@@ -203,63 +321,87 @@
     });
   }
 
-  // ── Render: Predictions ────────────────────────────────────
+  // ── Render: Predictions (legacy fallback) ──────────────────
   function renderPredictions(data) {
     if (!data || !data.predictions) return;
     allPredictions = data.predictions;
-
-    // Update cycle controls
-    const hasActive = data.cycle && data.cycle.status === 'active';
-    $('#run-cycle-btn').disabled = hasActive;
-    $('#abort-cycle-btn').disabled = !hasActive;
-
-    renderTable();
+    if (!useWatchlistMode) {
+      renderTable();
+    }
+    updatePhaseFromCycle(data.cycle);
   }
 
+  function updatePhaseFromCycle(cycle) {
+    if (!cycle) {
+      $('#stat-phase').textContent = 'IDLE';
+      return;
+    }
+    const phase = cycle.phase || cycle.status || 'active';
+    $('#stat-phase').textContent = phase.toUpperCase();
+  }
+
+  // ── Render: Table ──────────────────────────────────────────
   function renderTable() {
     const tbody = $('#stock-tbody');
-    let filtered = [...allPredictions];
+    let items;
+
+    if (useWatchlistMode && allWatchlist.length > 0) {
+      items = [...allWatchlist];
+    } else {
+      // Fallback to predictions-only mode
+      items = allPredictions.map(p => ({
+        ticker: p.ticker,
+        name: p.name || '',
+        asset_type: isCrypto(p.ticker) ? 'crypto' : 'equity',
+        predicted_direction: p.predicted_direction,
+        confidence: p.confidence,
+        initial_price: p.initial_price,
+        provider: p.provider || '',
+        has_prediction: true,
+      }));
+    }
 
     // Filter out MARKET-* tickers from the main table
-    filtered = filtered.filter(p => {
+    items = items.filter(p => {
       const t = (p.ticker || '').toUpperCase();
       return !t.startsWith('MARKET-');
     });
 
     // Filter by market type
     if (currentFilter === 'crypto') {
-      filtered = filtered.filter(p => isCrypto(p.ticker));
+      items = items.filter(p => p.asset_type === 'crypto' || isCrypto(p.ticker));
     } else if (currentFilter === 'equity') {
-      filtered = filtered.filter(p => !isCrypto(p.ticker));
+      items = items.filter(p => p.asset_type !== 'crypto' && !isCrypto(p.ticker));
     }
 
     // Search filter
     if (searchQuery) {
-      filtered = filtered.filter(p =>
+      items = items.filter(p =>
         (p.ticker || '').toLowerCase().includes(searchQuery) ||
         (p.name || '').toLowerCase().includes(searchQuery)
       );
     }
 
     // Sort
-    filtered.sort(getSortFn(currentSort));
+    items.sort(getSortFn(currentSort));
 
-    if (filtered.length === 0) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No predictions match your filters</td></tr>';
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No stocks match your filters</td></tr>';
       return;
     }
 
-    tbody.innerHTML = filtered.map(p => {
-      const dir = (p.predicted_direction || 'pending').toLowerCase();
-      const conf = p.confidence != null ? p.confidence : 0;
-      const confPct = Math.round(conf * 100);
-      const price = p.initial_price != null ? `$${formatPrice(p.initial_price)}` : '--';
-      const provider = prettyProvider(p.provider || '');
+    tbody.innerHTML = items.map(p => {
+      const hasPred = p.has_prediction || p.predicted_direction;
+      const dir = hasPred ? (p.predicted_direction || 'pending').toLowerCase() : 'pending';
+      const conf = hasPred && p.confidence != null ? p.confidence : 0;
+      const confPct = hasPred ? Math.round(conf * 100) : 0;
+      const price = p.initial_price != null ? `$${formatPrice(p.initial_price)}` : (p.last_price != null ? `$${formatPrice(p.last_price)}` : '--');
+      const provider = hasPred ? prettyProvider(p.provider || '') : '';
       const ticker = p.ticker || '?';
       const name = truncate(p.name || '', 30);
-      const isProcessing = !p.predicted_direction;
+      const isPending = !hasPred;
 
-      return `<tr data-ticker="${ticker}" class="${isProcessing ? 'processing' : ''}" onclick="window._openDetail('${ticker}')">
+      return `<tr data-ticker="${ticker}" class="${isPending ? 'pending-row' : ''}" onclick="window._openDetail('${ticker}')">
         <td class="col-ticker">
           <div class="ticker-cell">
             <span class="ticker-symbol">${ticker}</span>
@@ -271,7 +413,7 @@
         <td class="col-confidence">
           <div class="conf-cell">
             <div class="conf-bar-bg"><div class="conf-bar-fill ${dir}" style="width:${confPct}%"></div></div>
-            <span class="conf-val">${confPct}%</span>
+            <span class="conf-val">${hasPred ? confPct + '%' : '--'}</span>
           </div>
         </td>
         <td class="col-provider"><span class="provider-tag">${provider}</span></td>
@@ -418,6 +560,8 @@
     if (!data) return;
     const stock = data.stock || {};
     const predictions = data.predictions || [];
+    const agentVotes = data.agent_votes || [];
+    const debateRounds = data.debate_rounds || [];
     const ticker = data.symbol || '?';
 
     $('#detail-ticker').textContent = ticker;
@@ -425,16 +569,24 @@
 
     // Get latest consensus
     const consensus = predictions.find(p => (p.provider || '').includes('consensus'));
-    const dir = consensus ? (consensus.predicted_direction || '').toLowerCase() : '--';
-    const conf = consensus ? Math.round((consensus.confidence || 0) * 100) : '--';
-    const price = consensus && consensus.initial_price ? `$${formatPrice(consensus.initial_price)}` : '--';
+    const councilWeighted = predictions.find(p => p.provider === 'council-weighted');
+    const bestPred = consensus || councilWeighted;
+    const dir = bestPred ? (bestPred.predicted_direction || '').toLowerCase() : '--';
+    const conf = bestPred ? Math.round((bestPred.confidence || 0) * 100) : '--';
+    const price = bestPred && bestPred.initial_price ? `$${formatPrice(bestPred.initial_price)}` : '--';
 
-    // Individual provider predictions (non-consensus)
+    // Individual provider predictions (non-consensus, non-council, non-synthesis)
     const providerPreds = predictions
-      .filter(p => !(p.provider || '').includes('consensus') && !(p.provider || '').includes('council'))
+      .filter(p => {
+        const prov = p.provider || '';
+        return !prov.includes('consensus') && !prov.includes('council') && !prov.includes('synthesis');
+      })
       .slice(0, 20);
 
-    const reasoning = consensus && consensus.reasoning ? consensus.reasoning : '';
+    // Synthesis votes
+    const synthesisPreds = predictions
+      .filter(p => (p.provider || '').includes('synthesis') && !(p.provider || '').includes('consensus'))
+      .slice(0, 20);
 
     let html = `
       <div class="detail-section">
@@ -459,27 +611,97 @@
         </div>
       </div>`;
 
-    if (reasoning) {
-      html += `
-      <div class="detail-section">
-        <div class="detail-section-title">Reasoning</div>
-        <div class="detail-reasoning">${escapeHtml(reasoning)}</div>
-      </div>`;
+    // Debate rounds (structured vote data)
+    if (debateRounds.length > 0) {
+      for (const round of debateRounds) {
+        const vt = round.vote_totals || {};
+        const totalVote = (vt.up || 0) + (vt.down || 0) + (vt.neutral || 0) || 1;
+        html += `
+        <div class="detail-section">
+          <div class="detail-section-title">${round.round_type === 'synthesis' ? 'Synthesis Round' : 'Council Debate'}</div>
+          <div class="vote-bars">
+            <div class="vote-bar-row">
+              <span class="vote-label up">▲ UP</span>
+              <div class="vote-bar-bg"><div class="vote-bar-fill up" style="width:${Math.round((vt.up || 0) / totalVote * 100)}%"></div></div>
+              <span class="vote-score">${(vt.up || 0).toFixed(2)}</span>
+            </div>
+            <div class="vote-bar-row">
+              <span class="vote-label down">▼ DOWN</span>
+              <div class="vote-bar-bg"><div class="vote-bar-fill down" style="width:${Math.round((vt.down || 0) / totalVote * 100)}%"></div></div>
+              <span class="vote-score">${(vt.down || 0).toFixed(2)}</span>
+            </div>
+            <div class="vote-bar-row">
+              <span class="vote-label neutral">● HOLD</span>
+              <div class="vote-bar-bg"><div class="vote-bar-fill neutral" style="width:${Math.round((vt.neutral || 0) / totalVote * 100)}%"></div></div>
+              <span class="vote-score">${(vt.neutral || 0).toFixed(2)}</span>
+            </div>
+          </div>
+          <div class="vote-winner">Winner: <span class="dir-badge ${round.winning_direction}">${dirLabel(round.winning_direction || '')}</span>
+            <span class="vote-conf">${Math.round((round.winning_confidence || 0) * 100)}%</span>
+            <span class="vote-participants">${round.participant_count || 0} participants</span>
+          </div>
+        </div>`;
+      }
     }
 
-    if (providerPreds.length > 0) {
+    // Agent votes (structured individual votes)
+    if (agentVotes.length > 0) {
+      // Group by phase
+      const byPhase = {};
+      for (const vote of agentVotes) {
+        const phase = vote.phase || 'analysis';
+        if (!byPhase[phase]) byPhase[phase] = [];
+        byPhase[phase].push(vote);
+      }
+
+      for (const [phase, votes] of Object.entries(byPhase)) {
+        const phaseLabel = phase === 'analysis' ? 'Analysis Agents' : phase === 'synthesis' ? 'Synthesis Votes' : phase.charAt(0).toUpperCase() + phase.slice(1);
+        html += `
+        <div class="detail-section">
+          <div class="detail-section-title">${phaseLabel}</div>
+          <div class="agent-vote-list">`;
+        for (const vote of votes) {
+          const vDir = (vote.vote_direction || 'neutral').toLowerCase();
+          const vConf = vote.confidence != null ? Math.round(vote.confidence * 100) + '%' : '--';
+          const role = vote.agent_role || '';
+          html += `<div class="agent-vote-item">
+            <div class="agent-vote-header">
+              <span class="agent-provider">${prettyProvider(vote.provider || '')}</span>
+              ${role ? `<span class="agent-role">${role}</span>` : ''}
+              <span class="dir-badge ${vDir}" style="font-size:0.65rem">${dirLabel(vDir)}</span>
+              <span class="agent-conf">${vConf}</span>
+            </div>
+            ${vote.reasoning ? `<div class="agent-reasoning">${renderMarkdown(vote.reasoning)}</div>` : ''}
+          </div>`;
+        }
+        html += `</div></div>`;
+      }
+    }
+
+    // Provider predictions (fallback if no agent_votes)
+    if (agentVotes.length === 0 && providerPreds.length > 0) {
       html += `
       <div class="detail-section">
         <div class="detail-section-title">Provider Votes</div>
         ${providerPreds.map(p => {
           const pDir = (p.predicted_direction || 'neutral').toLowerCase();
           const pConf = p.confidence != null ? Math.round(p.confidence * 100) + '%' : '--';
+          const reasoning = p.reasoning || '';
           return `<div class="detail-prediction-row">
-            <span class="detail-pred-provider">${prettyProvider(p.provider || '')}</span>
-            <span class="detail-pred-dir ${pDir}">${dirLabel(pDir)} ${pConf}</span>
+            <div class="detail-pred-header">
+              <span class="detail-pred-provider">${prettyProvider(p.provider || '')}</span>
+              <span class="detail-pred-dir ${pDir}">${dirLabel(pDir)} ${pConf}</span>
+            </div>
+            ${reasoning ? `<div class="detail-pred-reasoning">${renderMarkdown(reasoning)}</div>` : ''}
           </div>`;
         }).join('')}
       </div>`;
+    }
+
+    // Consensus reasoning (formatted)
+    const reasoning = bestPred && bestPred.reasoning ? bestPred.reasoning : '';
+    if (reasoning && debateRounds.length === 0) {
+      html += formatReasoning(reasoning);
     }
 
     $('#detail-body').innerHTML = html;
@@ -488,7 +710,7 @@
   // ── Feed from data (on page load) ─────────────────────────
   function updateFeedFromData(data) {
     if (!data || !data.predictions || data.predictions.length === 0) return;
-    if (feedMessages.length > 0) return; // SSE already populated
+    if (feedMessages.length > 0) return;
 
     const cycle = data.cycle;
     const preds = data.predictions.filter(p => !(p.ticker || '').startsWith('MARKET-'));
@@ -522,11 +744,9 @@
 
   function prettyProvider(raw) {
     if (!raw) return '';
-    // Strip common prefixes/suffixes
     const cleaned = raw.replace(/-synthesis|-council|-swarm|-consensus|-weighted/g, '').trim();
     const meta = PROVIDER_MODELS[cleaned];
     if (meta) return meta.name;
-    // Title case fallback
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   }
 
@@ -563,9 +783,9 @@
       case 'confidence-asc':
         return (a, b) => (a.confidence || 0) - (b.confidence || 0);
       case 'price-desc':
-        return (a, b) => (b.initial_price || 0) - (a.initial_price || 0);
+        return (a, b) => ((b.initial_price || b.last_price) || 0) - ((a.initial_price || a.last_price) || 0);
       case 'price-asc':
-        return (a, b) => (a.initial_price || 0) - (b.initial_price || 0);
+        return (a, b) => ((a.initial_price || a.last_price) || 0) - ((b.initial_price || b.last_price) || 0);
       case 'direction':
         return (a, b) => {
           const order = { up: 0, down: 1, neutral: 2 };
