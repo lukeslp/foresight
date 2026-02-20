@@ -206,6 +206,10 @@ class Config:
         'synthesis': os.environ.get('PROVIDER_SYNTHESIS', 'anthropic'),
     }
 
+    # Parallel execution
+    MAX_CONCURRENT_PROVIDERS = int(os.environ.get('MAX_CONCURRENT_PROVIDERS', 4))
+    PROVIDER_TIMEOUT_SECONDS = int(os.environ.get('PROVIDER_TIMEOUT_SECONDS', 60))
+
     # Swarm-style democracy settings
     SWARM_SUBAGENTS_PER_PROVIDER = int(os.environ.get('SWARM_SUBAGENTS_PER_PROVIDER', 2))
 
