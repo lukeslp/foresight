@@ -94,11 +94,13 @@ Model overrides (set in `app/config.py`):
 
 | Provider | Default model |
 |----------|--------------|
-| xai | `grok-2-1212` |
-| anthropic | `claude-sonnet-4-20250514` |
-| gemini | `gemini-2.0-flash` |
-| mistral | `mistral-large-latest` |
+| xai | `grok-4-1-fast-reasoning` |
+| anthropic | `claude-sonnet-4-6-20250514` |
+| gemini | `gemini-3.5-flash` |
+| openai | `gpt-5.4` |
+| mistral | `mistral-small-latest` |
 | perplexity | `sonar` |
+| cohere | `command-r-08-2024` |
 | huggingface | `meta-llama/Llama-3.3-70B-Instruct` |
 
 ---
