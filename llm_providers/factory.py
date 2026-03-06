@@ -89,14 +89,6 @@ PROVIDER_CAPABILITIES = {
         'tts': False,
         'embedding': True
     },
-    'manus': {
-        'chat': True,
-        'streaming': True,
-        'image_generation': False,
-        'vision': True,
-        'tts': False,
-        'embedding': False
-    },
     'elevenlabs': {
         'chat': False,
         'streaming': False,
