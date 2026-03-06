@@ -54,6 +54,9 @@ WORK_LOG.md
 AGENT_REPORT.md
 temp_*
 
+# Internal docs (not for public consumption)
+docs/internal/
+
 # Deprecated files
 app_old.py
 db_old.py
