@@ -181,11 +181,6 @@ COMPLEXITY_TIERS = {
         'medium': 'mistralai/Mixtral-8x7B-Instruct-v0.1',
         'complex': 'meta-llama/Llama-3.2-3B-Instruct'
     },
-    'manus': {
-        'simple': 'manus-1.5',
-        'medium': 'manus-1.5',
-        'complex': 'manus-1.5'
-    },
     'ollama': {
         'simple': 'llama3.2',
         'medium': 'llama3.1',
