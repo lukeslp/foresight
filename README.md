@@ -12,6 +12,8 @@ A stock prediction terminal that runs a staged multi-provider swarm debate on a 
 
 **Live:** https://dr.eamer.dev/consensus/
 
+<img width="2616" height="1604" alt="CleanShot 2026-03-06 at 11 44 08@2x" src="https://github.com/user-attachments/assets/9fc6288f-f3c1-4c82-a4cf-fe80acf67698" />
+
 ---
 
 ## Features
