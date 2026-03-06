@@ -21,7 +21,9 @@
       "Bash(PYTHONPATH=. python3:*)",
       "Bash(MSG=\"release prep: remove Manus references, fix terminology, update docs\" rm -f /home/coolhand/projects/hexplorer-game/.git/index.lock cd /home/coolhand/projects/hexplorer-game)",
       "Bash(__NEW_LINE_2e2c33d7b4be6af6__ cd /home/coolhand/projects/blissAPI)",
-      "Bash(__NEW_LINE_8a8d56688adeaf2c__ cd /home/coolhand/projects/predictive-keyboard)"
+      "Bash(__NEW_LINE_8a8d56688adeaf2c__ cd /home/coolhand/projects/predictive-keyboard)",
+      "Bash(MSG=\"release prep: remove Manus references, fix terminology, update docs\")",
+      "Bash(__NEW_LINE_cf84c44d8a93650c__ cd /home/coolhand/projects/predictive-keyboard)"
     ]
   },
   "enableAllProjectMcpServers": true,
