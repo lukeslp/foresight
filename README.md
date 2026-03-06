@@ -3,6 +3,8 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square)
 ![Flask](https://img.shields.io/badge/flask-3.0%2B-lightgrey?style=flat-square)
 ![D3.js](https://img.shields.io/badge/d3.js-v7-orange?style=flat-square)
+![SQLite](https://img.shields.io/badge/sqlite-WAL-lightblue?style=flat-square)
+![SSE](https://img.shields.io/badge/streaming-SSE-purple?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 [![Live](https://img.shields.io/badge/live-dr.eamer.dev%2Fconsensus-amber?style=flat-square)](https://dr.eamer.dev/consensus/)
 
