@@ -11,7 +11,7 @@ import requests
 
 
 class ManusProvider(BaseLLMProvider):
-    """Manus AI provider using task-based API."""
+    """Manus provider using task-based API."""
 
     DEFAULT_MODEL = "manus-1.5"
     BASE_URL = "https://api.manus.ai/v1"
