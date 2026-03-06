@@ -289,12 +289,6 @@ class ProviderFactory:
             pass
 
         try:
-            from .manus_provider import ManusProvider
-            providers['manus'] = ManusProvider
-        except ImportError:
-            pass
-
-        try:
             from .elevenlabs_provider import ElevenLabsProvider
             providers['elevenlabs'] = ElevenLabsProvider
         except ImportError:
@@ -392,7 +386,7 @@ class ProviderFactory:
 
         Example:
             vision_providers = ProviderFactory.find_providers_with_capability('vision')
-            # Returns: ['openai', 'anthropic', 'xai', 'huggingface', 'manus', 'claude_code']
+            # Returns: ['openai', 'anthropic', 'xai', 'huggingface', 'claude_code']
 
             tts_providers = ProviderFactory.find_providers_with_capability('tts')
             # Returns: ['elevenlabs']
