@@ -113,7 +113,7 @@ Model overrides (set in `app/config.py`):
 
 - During market hours (default `09:30-16:00` ET), the worker runs a new cycle every 30 minutes.
 - During closed hours, the worker runs two low-frequency refresh cycles (`20:00` and `06:00` ET by default) to refresh news/catalyst context before the next open.
-- Overnight runs use a lighter provider order by default, with periodic full-debate refresh cycles so top agents are still used regularly.
+- Overnight runs use a lighter provider order by default, with periodic full-debate refresh cycles so top providers are still used regularly.
 - Weekend behavior follows the same logic and naturally schedules pre-open refreshes for Monday (for example, Sunday evening + Monday early morning).
 - NYSE holiday and early-close session logic is applied to scheduling (for example, New Year holiday closure and Black Friday early close).
 - If `pandas_market_calendars` is available, it is used for exchange-exact session windows; otherwise built-in NYSE rules are used.
@@ -130,17 +130,17 @@ Providers vote on discovery candidates by stage (`core`, `join`, `side`), and ea
 
 ### Phase 2 — Validation
 
-Each symbol is validated via yfinance. Symbols that cannot be fetched, return no price history, or are otherwise malformed are silently dropped. Valid symbols are written to the `stocks` table and their current prices are recorded in `prices`.
+Each symbol is validated via yfinance. Symbols that cannot be fetched, return no price history, or are otherwise malformed are dropped. Valid symbols are written to the `stocks` table and their current prices are recorded in `prices`.
 
 ### Phase 3 — Multi-Model Debate
 
 For each surviving symbol, providers are called by stage:
 
 | Stage | Providers | Role |
-|------|-----------|------|
-| Core | xAI, Gemini | fast low-cost first-pass analysis |
-| Join | Anthropic, OpenAI, Perplexity | deep reasoning and grounded context |
-| Side | Mistral, Cohere, HuggingFace (Llama) | additional diversity and dissent |
+|-------|-----------|------|
+| Core | xAI, Gemini | Fast, low-cost first-pass analysis |
+| Join | Anthropic, OpenAI, Perplexity | Deep reasoning and grounded context |
+| Side | Mistral, Cohere, HuggingFace (Llama) | Additional diversity and dissent |
 
 Each analyst receives the ticker symbol, current price, and the last 10 closing prices. Each returns a JSON object with `prediction` (UP/DOWN/NEUTRAL), `confidence` (0.0–1.0), and `reasoning`.
 
@@ -268,10 +268,7 @@ Key fixtures in `tests/conftest.py`:
 
 ## Author
 
-Luke Steuber
-- Web: [dr.eamer.dev](https://dr.eamer.dev)
-- Bluesky: [@lukesteuber.com](https://bsky.app/profile/lukesteuber.com)
-- Email: luke@lukesteuber.com
+**Luke Steuber** · [lukesteuber.com](https://lukesteuber.com) · [@lukesteuber.com](https://bsky.app/profile/lukesteuber.com)
 
 ---
 
